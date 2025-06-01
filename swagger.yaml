@@ -1,0 +1,364 @@
+openapi: 3.0.0
+info:
+  title: Billing System API
+  version: 1.0.0
+  description: API documentation for the Billing System application
+servers:
+  - url: http://localhost:3000/api
+    description: Local server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        token:
+          type: string
+        type:
+          type: string
+          enum: [admin, user]
+      required:
+        - email
+        - password
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        costPerHour:
+          type: number
+          format: float
+      required:
+        - name
+        - costPerHour
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        categoryId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [available, in-use, maintenance]
+      required:
+        - name
+        - categoryId
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        deviceId:
+          type: string
+          format: uuid
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+        cost:
+          type: number
+          format: float
+      required:
+        - userId
+        - deviceId
+        - duration
+
+paths:
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Successful login
+        '401':
+          description: Unauthorized
+  /auth/refresh-token:
+    post:
+      summary: Refresh authentication token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: The refresh token received during login
+              required:
+                - refreshToken
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+                  refreshToken:
+                    type: string
+        '401':
+          description: Unauthorized (Invalid refresh token)
+      security:
+        - BearerAuth: []
+  /auth/create-user:
+    post:
+      summary: Create a new user (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: User created successfully
+        '403':
+          description: Forbidden (Admin access required)
+
+  /category/create:
+    post:
+      summary: Create a new category (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Category'
+      responses:
+        '201':
+          description: Category created successfully
+        '403':
+          description: Forbidden (Admin access required)
+  /category:
+    get:
+      summary: Get all categories
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of categories
+  /category/{id}:
+    get:
+      summary: Get category by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the category to retrieve
+      responses:
+        '200':
+          description: Category data
+        '404':
+          description: Category not found
+  /category/update/{id}:
+    put:
+      summary: Update a category by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the category to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Category'
+      responses:
+        '200':
+          description: Category updated successfully
+        '403':
+          description: Forbidden (Admin access required)
+        '404':
+          description: Category not found
+  /category/delete/{id}:
+    delete:
+      summary: Delete a category by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the category to delete
+      responses:
+        '200':
+          description: Category deleted successfully
+        '403':
+          description: Forbidden (Admin access required)
+        '404':
+          description: Category not found
+
+  /connection/status:
+    get:
+      summary: Get WebSocket connection status
+      responses:
+        '200':
+          description: Current connection status
+
+  /device/create:
+    post:
+      summary: Create a new device (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Device'
+      responses:
+        '201':
+          description: Device created successfully
+        '403':
+          description: Forbidden (Admin access required)
+  /device:
+    get:
+      summary: Get all devices (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of devices
+        '403':
+          description: Forbidden (Admin access required)
+  /device/{id}:
+    get:
+      summary: Get device by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the device to retrieve
+      responses:
+        '200':
+          description: Device data
+        '403':
+          description: Forbidden (Admin access required)
+        '404':
+          description: Device not found
+  /device/update/{id}:
+    put:
+      summary: Update a device by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the device to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Device'
+      responses:
+        '200':
+          description: Device updated successfully
+        '403':
+          description: Forbidden (Admin access required)
+        '404':
+          description: Device not found
+  /device/delete/{id}:
+    delete:
+      summary: Delete a device by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the device to delete
+      responses:
+        '200':
+          description: Device deleted successfully
+        '403':
+          description: Forbidden (Admin access required)
+        '404':
+          description: Device not found
+
+  /transaction/create:
+    post:
+      summary: Create a new transaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Transaction'
+      responses:
+        '201':
+          description: Transaction created successfully
