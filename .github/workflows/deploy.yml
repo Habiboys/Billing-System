@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [ Backend ]
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -16,8 +16,15 @@ jobs:
         username: ${{ secrets.VM_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          # Load NVM
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+          
+          # Clone atau pull repo
           cd ~/app || git clone https://github.com/${{ github.repository }}.git ~/app
           cd ~/app
           git pull
+          
+          # Install dependencies dan start app
           npm install
-          pm2 restart app || pm2 start app.js --name app
+          pm2 restart app || pm2 start src/index.js --name app
