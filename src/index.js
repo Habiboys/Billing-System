@@ -25,6 +25,7 @@ const swaggerDocument = YAML.load(path.join(__dirname, '../swagger.yaml'));
 const app = express();
 
 // Middleware
+//
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
