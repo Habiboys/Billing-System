@@ -15,16 +15,28 @@ jobs:
         host: ${{ secrets.VM_HOST }}
         username: ${{ secrets.VM_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: 22
+        debug: true
         script: |
+          echo "=== SSH Connection Successful ==="
+          whoami
+          pwd
+          
           # Load NVM
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
           
           # Clone atau pull repo
-          cd ~/app || git clone https://github.com/${{ github.repository }}.git ~/app
+          if [ ! -d "~/app" ]; then
+            git clone https://github.com/Habiboys/Billing-System.git ~/app
+          fi
+          
           cd ~/app
-          git pull
+          git pull origin Backend
           
           # Install dependencies dan start app
           npm install
           pm2 restart app || pm2 start src/index.js --name app
+          
+          echo "=== Deployment Complete ==="
+          pm2 status
