@@ -487,6 +487,14 @@ paths:
         "403":
           description: Forbidden (Admin access required)
 
+  /api/connection/status:
+    get:
+      summary: Get connection status
+      
+      responses:
+        "200":
+          description: Connection status
+
   /transaction:
     get:
       summary: Get all transactions
