@@ -13,7 +13,7 @@ const getConnectionStatus = (req, res) => {
     }
 };
 
-const getUnregisteredDevices = async (req, res) => {
+const getDisconnectedDevices = async (req, res) => {
     try {
         const connectedDevices = wsClient.getConnectionStatus().devices;
         const connectedIds = connectedDevices.map(device => device.device_id);
@@ -35,8 +35,30 @@ const getUnregisteredDevices = async (req, res) => {
         res.status(500).json({ message: 'Failed to get unregistered devices', error: error.message });
     }
 };
+// sudah terhubung ke socket tapi belum terdaftar di database
+const getUnregisteredDevices = async (req, res) => {
+    try {
+        const connectedDevices = wsClient.getConnectionStatus().devices;
+        const connectedIds = connectedDevices.map(device => device.device_id);
+        const devices = await Device.findAll({
+            where: {
+                id: {
+                    [Op.notIn]: connectedIds
+                }
+            }
+        });
+        res.status(200).json({
+            message: 'Berhasil mendapatkan daftar device yang tidak terkoneksi',
+            data: devices
+        });
+    } catch (error) {
+        console.error('Error getting unregistered devices:', error);
+        res.status(500).json({ message: 'Failed to get unregistered devices', error: error.message });
+    }
+};
 
 module.exports = {
     getConnectionStatus,
-    getUnregisteredDevices
+    getUnregisteredDevices,
+    getDisconnectedDevices
 };
