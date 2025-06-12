@@ -279,12 +279,12 @@ paths:
           description: Forbidden (Admin access required)
   /device:
     get:
-      summary: Get all devices (Admin only)
+      summary: Get all device (Admin only)
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: List of devices
+          description: List of device
         "403":
           description: Forbidden (Admin access required)
   /device/{id}:
@@ -354,7 +354,7 @@ paths:
         "404":
           description: Device not found
 
-  /devices/create:
+  /device/create:
     post:
       summary: Create a new device (Admin only)
       description: Mendaftarkan device baru. Device harus sudah terkoneksi ke WebSocket server sebelum bisa didaftarkan.
@@ -421,9 +421,9 @@ paths:
         "403":
           description: Forbidden (Admin access required)
 
-  /devices/connected:
+  /device/connected:
     get:
-      summary: Get all connected devices (Admin only)
+      summary: Get all connected device (Admin only)
       description: Mendapatkan daftar semua device yang terkoneksi ke WebSocket server
       security:
         - BearerAuth: []
@@ -444,7 +444,7 @@ paths:
                       totalConnected:
                         type: integer
                         description: Jumlah total device yang terkoneksi
-                      devices:
+                      device:
                         type: array
                         items:
                           type: string
@@ -452,9 +452,9 @@ paths:
         "403":
           description: Forbidden (Admin access required)
 
-  /devices/unregistered:
+  /device/unregistered:
     get:
-      summary: Get unregistered connected devices (Admin only)
+      summary: Get unregistered connected device (Admin only)
       description: Mendapatkan daftar device yang terkoneksi ke WebSocket server tapi belum terdaftar di database
       security:
         - BearerAuth: []
@@ -475,7 +475,7 @@ paths:
                       totalUnregistered:
                         type: integer
                         description: Jumlah device yang belum terdaftar
-                      unregisteredDevices:
+                      unregistereddevice:
                         type: array
                         items:
                           type: string
