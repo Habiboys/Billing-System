@@ -1,0 +1,754 @@
+openapi: 3.0.0
+info:
+  title: Billing System API
+  version: 1.0.0
+  description: API documentation for the Billing System application
+servers:
+  - url: http://20.251.153.107:3005/api
+    description: Deploy
+  - url: https://sponge-quiet-brightly.ngrok-free.app/api
+    description: tunel
+  - url: http://localhost:3000/api
+    description: Local
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        token:
+          type: string
+        type:
+          type: string
+          enum: [admin, user]
+      required:
+        - email
+        - password
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        costPerHour:
+          type: number
+          format: float
+      required:
+        - name
+        - costPerHour
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Device ID yang terkoneksi ke WebSocket server
+        name:
+          type: string
+          description: Nama device
+        categoryId:
+          type: string
+          format: uuid
+          description: ID kategori device
+        createdAt:
+          type: string
+          format: date-time
+          description: Waktu pembuatan record
+        updatedAt:
+          type: string
+          format: date-time
+          description: Waktu terakhir update record
+      required:
+        - id
+        - name
+        - categoryId
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        deviceId:
+          type: string
+          format: uuid
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        duration:
+          type: integer
+        cost:
+          type: number
+          format: float
+      required:
+        - userId
+        - deviceId
+        - duration
+
+paths:
+  /auth/login:
+    post:
+      summary: User login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Successful login
+        "401":
+          description: Unauthorized
+  /auth/refresh-token:
+    post:
+      summary: Refresh authentication token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: The refresh token received during login
+              required:
+                - refreshToken
+      responses:
+        "200":
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+
+        "401":
+          description: Unauthorized (Invalid refresh token)
+      security:
+        - BearerAuth: []
+  /auth/create-user:
+    post:
+      summary: Create a new user (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/User"
+      responses:
+        "201":
+          description: User created successfully
+        "403":
+          description: Forbidden (Admin access required)
+
+  /category/create:
+    post:
+      summary: Create a new category (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Category"
+      responses:
+        "201":
+          description: Category created successfully
+        "403":
+          description: Forbidden (Admin access required)
+  /category:
+    get:
+      summary: Get all categories
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of categories
+  /category/{id}:
+    get:
+      summary: Get category by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the category to retrieve
+      responses:
+        "200":
+          description: Category data
+        "404":
+          description: Category not found
+  /category/update/{id}:
+    put:
+      summary: Update a category by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the category to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Category"
+      responses:
+        "200":
+          description: Category updated successfully
+        "403":
+          description: Forbidden (Admin access required)
+        "404":
+          description: Category not found
+  /category/delete/{id}:
+    delete:
+      summary: Delete a category by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the category to delete
+      responses:
+        "200":
+          description: Category deleted successfully
+        "403":
+          description: Forbidden (Admin access required)
+        "404":
+          description: Category not found
+
+  /device/create:
+    post:
+      summary: Create a new device (Admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Device"
+      responses:
+        "201":
+          description: Device created successfully
+        "403":
+          description: Forbidden (Admin access required)
+  /device:
+    get:
+      summary: Get all devices (Admin only)
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: List of devices
+        "403":
+          description: Forbidden (Admin access required)
+  /device/{id}:
+    get:
+      summary: Get device by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the device to retrieve
+      responses:
+        "200":
+          description: Device data
+        "403":
+          description: Forbidden (Admin access required)
+        "404":
+          description: Device not found
+  /device/update/{id}:
+    put:
+      summary: Update a device by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the device to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Device"
+      responses:
+        "200":
+          description: Device updated successfully
+        "403":
+          description: Forbidden (Admin access required)
+        "404":
+          description: Device not found
+  /device/delete/{id}:
+    delete:
+      summary: Delete a device by ID (Admin only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID of the device to delete
+      responses:
+        "200":
+          description: Device deleted successfully
+        "403":
+          description: Forbidden (Admin access required)
+        "404":
+          description: Device not found
+
+  /devices/create:
+    post:
+      summary: Create a new device (Admin only)
+      description: Mendaftarkan device baru. Device harus sudah terkoneksi ke WebSocket server sebelum bisa didaftarkan.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deviceId:
+                  type: string
+                  description: ID device yang sudah terkoneksi ke WebSocket server
+                name:
+                  type: string
+                  description: Nama device
+                categoryId:
+                  type: string
+                  format: uuid
+                  description: ID kategori device
+              required:
+                - deviceId
+                - name
+                - categoryId
+      responses:
+        "201":
+          description: Device berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Device berhasil didaftarkan
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      categoryId:
+                        type: string
+                        format: uuid
+                      createdAt:
+                        type: string
+                        format: date-time
+                      updatedAt:
+                        type: string
+                        format: date-time
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Device ID harus diisi
+        "403":
+          description: Forbidden (Admin access required)
+
+  /devices/connected:
+    get:
+      summary: Get all connected devices (Admin only)
+      description: Mendapatkan daftar semua device yang terkoneksi ke WebSocket server
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Berhasil mendapatkan daftar device
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Berhasil mendapatkan daftar device yang terkoneksi
+                  data:
+                    type: object
+                    properties:
+                      totalConnected:
+                        type: integer
+                        description: Jumlah total device yang terkoneksi
+                      devices:
+                        type: array
+                        items:
+                          type: string
+                        description: Array dari device ID yang terkoneksi
+        "403":
+          description: Forbidden (Admin access required)
+
+  /devices/unregistered:
+    get:
+      summary: Get unregistered connected devices (Admin only)
+      description: Mendapatkan daftar device yang terkoneksi ke WebSocket server tapi belum terdaftar di database
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Berhasil mendapatkan daftar device
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Berhasil mendapatkan daftar device yang belum terdaftar
+                  data:
+                    type: object
+                    properties:
+                      totalUnregistered:
+                        type: integer
+                        description: Jumlah device yang belum terdaftar
+                      unregisteredDevices:
+                        type: array
+                        items:
+                          type: string
+                        description: Array dari device ID yang belum terdaftar
+        "403":
+          description: Forbidden (Admin access required)
+
+  /transaction:
+    get:
+      summary: Get all transactions
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar semua transaksi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Transaction"
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Internal server error
+                  error:
+                    type: string
+
+  /transaction/create:
+    post:
+      summary: Create a new transaction
+      description: Membuat transaksi baru dan mengirim timer ke device melalui WebSocket
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  description: ID user yang melakukan transaksi
+                deviceId:
+                  type: string
+                  description: ID device yang akan digunakan
+                duration:
+                  type: integer
+                  description: Durasi penggunaan dalam milidetik
+                start:
+                  type: string
+                  format: date-time
+                  description: Waktu mulai (opsional)
+                end:
+                  type: string
+                  format: date-time
+                  description: Waktu selesai (opsional)
+                cost:
+                  type: number
+                  format: float
+                  description: Biaya transaksi (opsional)
+              required:
+                - userId
+                - deviceId
+                - duration
+      responses:
+        "201":
+          description: Transaksi berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Transaksi berhasil dibuat
+                  data:
+                    type: object
+                    properties:
+                      transaction:
+                        $ref: "#/components/schemas/Transaction"
+                      deviceCommand:
+                        type: object
+                        properties:
+                          deviceId:
+                            type: string
+                          timer:
+                            type: integer
+        "400":
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: userId, deviceId, dan duration wajib diisi
+        "404":
+          description: Device tidak ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Device tidak ditemukan di database
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Terjadi kesalahan saat membuat transaksi
+                  error:
+                    type: string
+
+  /transaction/{id}:
+    get:
+      summary: Get transaction by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID transaksi yang ingin diambil
+      responses:
+        "200":
+          description: Data transaksi ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Success
+                  data:
+                    $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Transaksi tidak ditemukan
+        "500":
+          description: Internal Server Error
+
+  /transaction/user/{userId}:
+    get:
+      summary: Get transactions by user ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID user yang transaksinya ingin diambil
+      responses:
+        "200":
+          description: Daftar transaksi user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Success
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Transaction"
+        "500":
+          description: Internal Server Error
+
+  /transaction/update/{id}:
+    put:
+      summary: Update transaction by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID transaksi yang akan diupdate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                start:
+                  type: string
+                  format: date-time
+                end:
+                  type: string
+                  format: date-time
+                duration:
+                  type: integer
+                cost:
+                  type: number
+                  format: float
+      responses:
+        "200":
+          description: Transaksi berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Transaction updated successfully
+                  data:
+                    $ref: "#/components/schemas/Transaction"
+        "404":
+          description: Transaksi tidak ditemukan
+        "500":
+          description: Internal Server Error
+
+  /transaction/delete/{id}:
+    delete:
+      summary: Delete transaction by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+            format: uuid
+          required: true
+          description: ID transaksi yang akan dihapus
+      responses:
+        "200":
+          description: Transaksi berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Transaction deleted successfully
+        "400":
+          description: Format UUID tidak valid
+        "404":
+          description: Transaksi tidak ditemukan
+        "500":
+          description: Internal Server Error
