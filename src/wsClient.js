@@ -41,15 +41,11 @@ const initWebSocketServer = (server) => {
                 }
                 
                 // Handle status update dari ESP32
-                if (data.type === 'status') {
-                    const deviceId = data.deviceId || data.device_id;
-                    const timerActive = data.timerActive;
-                    if (timerActive) {
-                        activeTimers.add(deviceId);
-                    } else {
-                        activeTimers.delete(deviceId);
-                    }
-                    console.log(`Timer status update from device ${deviceId}: ${timerActive ? 'active' : 'inactive'}`);
+                if (data.status === 'relay_off') {
+                    const deviceId = data.device_id;
+                    console.log(`Timer completed for device ${deviceId}. Relay turned off.`);
+                    // Hapus dari active timers karena timer sudah selesai
+                    activeTimers.delete(deviceId);
                 }
                 
             } catch (error) {
@@ -205,6 +201,14 @@ const sendCommand = (data) => {
         };
     }
 
+    // Cek apakah device sedang memiliki timer aktif
+    if (command === 'start' && isTimerActive(deviceId)) {
+        return {
+            success: false,
+            message: `Device ${deviceId} masih memiliki timer yang aktif`
+        };
+    }
+
     // Ambil koneksi WebSocket untuk device
     const client = connectedClients.get(deviceId);
     
@@ -226,7 +230,7 @@ const sendCommand = (data) => {
             timestamp: new Date().toISOString()
         };
 
-        // Update timer status berdasarkan command
+        // Set timer status jika command start
         if (command === 'start') {
             activeTimers.add(deviceId);
         } else if (command === 'stop') {
@@ -255,12 +259,12 @@ const sendCommand = (data) => {
 const getConnectionStatus = () => {
     // Ubah format data untuk memastikan konsistensi dengan device_id
     const devices = Array.from(connectedClients.keys()).map(deviceId => ({
-        device_id: deviceId,  // Gunakan device_id untuk konsistensi
-        deviceId: deviceId,   // Tetap sertakan deviceId untuk kompatibilitas
+        device_id: deviceId,
+        deviceId: deviceId,
         status: isTimerActive(deviceId) ? 'on' : 'off'
     }));
 
-    console.log('Current connected devices:', devices); // Tambah log untuk debug
+    console.log('Current connected devices:', devices);
 
     return {
         totalClients: wss ? wss.clients.size : 0,

@@ -1,5 +1,7 @@
 const wsClient = require('../wsClient');
 const { Device } = require('../models');
+//import Op from sequelize
+const { Op } = require('sequelize');
 
 const getConnectionStatus = (req, res) => {
     try {
