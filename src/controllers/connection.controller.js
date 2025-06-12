@@ -15,12 +15,20 @@ const getConnectionStatus = (req, res) => {
 
 const getUnregisteredDevices = async (req, res) => {
     try {
+        const connectedDevices = wsClient.getConnectionStatus().devices;
+        const connectedIds = connectedDevices.map(device => device.device_id);
+
         const devices = await Device.findAll({
             where: {
                 id: {
-                    [Op.notIn]: wsClient.getConnectionStatus().devices.map(device => device.id)
+                    [Op.notIn]: connectedIds
                 }
             }
+        });
+
+        res.status(200).json({
+            message: 'Berhasil mendapatkan daftar device yang tidak terkoneksi',
+            data: devices
         });
     } catch (error) {
         console.error('Error getting unregistered devices:', error);
