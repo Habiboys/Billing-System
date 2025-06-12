@@ -12,6 +12,7 @@ const cors = require('cors');
 //coba3
 //coba4
 //coba5
+//coba6
 
 // Import routes
 const authRoutes = require('./routes/auth.route');
