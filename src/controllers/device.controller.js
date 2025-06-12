@@ -242,6 +242,7 @@ const getUnregisteredDevices = async (req, res) => {
             const deviceId = device.device_id || device.deviceId;
             return !registeredDeviceIds.includes(deviceId);
         });
+        //s
         
         console.log('Unregistered devices:', unregisteredDevices);
         
