@@ -194,22 +194,8 @@ const deleteDevice = async (req, res) => {
 // Mendapatkan semua device yang terkoneksi ke WebSocket
 const getAllConnectedDevices = async (req, res) => {
     try {
-        const connectedDevices = getConnectionStatus();
-        console.log('Connected devices from WebSocket:', connectedDevices); 
-        
-        // Format ulang data devices untuk konsistensi
-        const formattedDevices = connectedDevices.devices.map(device => ({
-            device_id: device.device_id || device.deviceId,
-            status: device.status
-        }));
-
-        return res.status(200).json({
-            message: 'Berhasil mendapatkan daftar device yang terkoneksi',
-            data: {
-                totalConnected: connectedDevices.totalClients,
-                devices: formattedDevices
-            }
-        });
+        const status = getConnectionStatus();
+        return res.status(200).json(status);
     } catch (error) {
         console.error('Get connected devices error:', error);
         return res.status(500).json({
@@ -221,43 +207,27 @@ const getAllConnectedDevices = async (req, res) => {
 // Mendapatkan device yang terkoneksi tapi belum terdaftar di database
 const getUnregisteredDevices = async (req, res) => {
     try {
-        const connectedDevices = getConnectionStatus();
-        console.log('Connected devices status:', connectedDevices); 
+        // Ambil status koneksi
+        const status = getConnectionStatus();
         
         // Ambil device yang sudah terdaftar di database
         const registeredDevices = await Device.findAll({
-            include: [
-                {
-                    model: Category,
-                    as: 'category'
-                }
-            ]
+            attributes: ['id']
         });
         
         const registeredDeviceIds = registeredDevices.map(device => device.id);
-        console.log('Registered device IDs:', registeredDeviceIds);
         
-        // Filter device yang belum terdaftar (cek baik device_id maupun deviceId)
-        const unregisteredDevices = connectedDevices.devices.filter(device => {
+        // Filter hanya device yang belum terdaftar
+        const unregisteredDevices = status.devices.filter(device => {
             const deviceId = device.device_id || device.deviceId;
             return !registeredDeviceIds.includes(deviceId);
         });
-        //s
         
-        console.log('Unregistered devices:', unregisteredDevices);
-        
-        // Format ulang data untuk response
-        const formattedUnregisteredDevices = unregisteredDevices.map(device => ({
-            device_id: device.device_id || device.deviceId,
-            status: device.status
-        }));
-        
+        // Kembalikan format yang sama dengan getConnectionStatus
         return res.status(200).json({
-            message: 'Berhasil mendapatkan daftar device yang belum terdaftar',
-            data: {
-                totalUnregistered: formattedUnregisteredDevices.length,
-                unregisteredDevices: formattedUnregisteredDevices
-            }
+            totalClients: status.totalClients,
+            registeredDevices: unregisteredDevices.length,
+            devices: unregisteredDevices
         });
     } catch (error) {
         console.error('Get unregistered devices error:', error);
