@@ -120,6 +120,10 @@ paths:
                   type: string
                 password:
                   type: string
+              example:
+                email: admin@gmail.com
+                password: admin123
+                
       responses:
         "200":
           description: Successful login

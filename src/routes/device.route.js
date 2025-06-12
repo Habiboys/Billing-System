@@ -19,7 +19,7 @@ router.put('/update/:id', tokenValidation,  updateDevice);
 router.delete('/delete/:id', tokenValidation, deleteDevice);
 
 // WebSocket device routes
-router.get('/connected', tokenValidation, getAllConnectedDevices);
-router.get('/unregistered', tokenValidation, getUnregisteredDevices);
+router.get('/connected',  getAllConnectedDevices);
+router.get('/unregistered',  getUnregisteredDevices);
 
 module.exports = router;
