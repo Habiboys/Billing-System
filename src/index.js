@@ -13,7 +13,7 @@ const authRoutes = require('./routes/auth.route');
 const categoryRoutes = require('./routes/category.route');
 const transactionRoutes = require("./routes/transaction.route");
 const deviceRoutes = require("./routes/device.route");
-const connectionRoutes = require('./routes/connectionRoutes');
+const connectionRoutes = require('./routes/connection.route');
 
 // Import WebSocket functions
 const { initWebSocketServer, sendToESP32, getConnectionStatus } = require('./wsClient');

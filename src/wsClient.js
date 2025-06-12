@@ -170,6 +170,87 @@ const sendToESP32 = (data) => {
     }
 };
 
+// Fungsi untuk mengirim perintah start/stop ke ESP32
+const sendCommand = (data) => {
+    if (!wss) {
+        return {
+            success: false,
+            message: 'WebSocket server not initialized'
+        };
+    }
+    
+    const deviceId = data.deviceId || data.device_id;
+    const { command } = data;
+    
+    // Validasi input
+    if (!deviceId) {
+        return {
+            success: false,
+            message: 'Device ID is required'
+        };
+    }
+
+    if (!command || !['start', 'stop'].includes(command)) {
+        return {
+            success: false,
+            message: 'Command harus berupa "start" atau "stop"'
+        };
+    }
+    
+    // Cek apakah device terdaftar
+    if (!connectedClients.has(deviceId)) {
+        return {
+            success: false,
+            message: `Device ${deviceId} not registered`
+        };
+    }
+
+    // Ambil koneksi WebSocket untuk device
+    const client = connectedClients.get(deviceId);
+    
+    // Cek status koneksi
+    if (client.readyState !== WebSocket.OPEN) {
+        connectedClients.delete(deviceId);
+        return {
+            success: false,
+            message: `Device ${deviceId} connection is not open`
+        };
+    }
+
+    try {
+        // Format data untuk dikirim ke device
+        const payload = {
+            type: 'command',
+            device_id: deviceId,
+            command,
+            timestamp: new Date().toISOString()
+        };
+
+        // Update timer status berdasarkan command
+        if (command === 'start') {
+            activeTimers.add(deviceId);
+        } else if (command === 'stop') {
+            activeTimers.delete(deviceId);
+        }
+
+        // Kirim data
+        client.send(JSON.stringify(payload));
+        console.log(`Command ${command} sent to device ${deviceId}:`, payload);
+        
+        return {
+            success: true,
+            message: `Command ${command} sent to device ${deviceId}`,
+            data: payload
+        };
+    } catch (error) {
+        console.error(`Error sending command to device ${deviceId}:`, error);
+        return {
+            success: false,
+            message: `Error sending command: ${error.message}`
+        };
+    }
+};
+
 // Fungsi untuk mendapatkan status koneksi
 const getConnectionStatus = () => {
     // Ubah format data untuk memastikan konsistensi dengan device_id
@@ -191,6 +272,7 @@ const getConnectionStatus = () => {
 module.exports = {
     initWebSocketServer,
     sendToESP32,
+    sendCommand,
     getConnectionStatus,
     isTimerActive
 };

@@ -7,7 +7,8 @@ const{
     updateDevice, 
     deleteDevice,
     getAllConnectedDevices,
-    getUnregisteredDevices
+    getUnregisteredDevices,
+    sendDeviceCommand
 } = require('../controllers/device.controller');
 const{ tokenValidation, verifyAdmin} = require('../middlewares/auth.middleware');
 
@@ -18,8 +19,7 @@ router.get('/:id', tokenValidation, getDeviceById);
 router.put('/update/:id', tokenValidation,  updateDevice);
 router.delete('/delete/:id', tokenValidation, deleteDevice);
 
-// WebSocket device routes
-router.get('/connected',  getAllConnectedDevices);
-router.get('/unregistered',  getUnregisteredDevices);
+// Command routes
+router.post('/:id/command', tokenValidation, sendDeviceCommand);
 
 module.exports = router;

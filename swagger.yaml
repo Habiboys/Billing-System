@@ -358,12 +358,19 @@ paths:
         "404":
           description: Device not found
 
-  /device/create:
+  /device/{id}/command:
     post:
-      summary: Create a new device (Admin only)
-      description: Mendaftarkan device baru. Device harus sudah terkoneksi ke WebSocket server sebelum bisa didaftarkan.
+      summary: Send command to device
+      description: Mengirim perintah start/stop ke device melalui WebSocket
       security:
         - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+          description: ID device yang akan dikirim perintah
       requestBody:
         required: true
         content:
@@ -371,23 +378,17 @@ paths:
             schema:
               type: object
               properties:
-                deviceId:
+                command:
                   type: string
-                  description: ID device yang sudah terkoneksi ke WebSocket server
-                name:
-                  type: string
-                  description: Nama device
-                categoryId:
-                  type: string
-                  format: uuid
-                  description: ID kategori device
+                  enum: [start, stop]
+                  description: Perintah yang akan dikirim ke device
               required:
-                - deviceId
-                - name
-                - categoryId
+                - command
+              example:
+                command: "start"
       responses:
-        "201":
-          description: Device berhasil didaftarkan
+        "200":
+          description: Perintah berhasil dikirim
           content:
             application/json:
               schema:
@@ -395,21 +396,19 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Device berhasil didaftarkan
+                    example: Berhasil mengirim perintah start ke device
                   data:
                     type: object
                     properties:
-                      id:
+                      type:
                         type: string
-                      name:
+                        example: command
+                      device_id:
                         type: string
-                      categoryId:
+                      command:
                         type: string
-                        format: uuid
-                      createdAt:
-                        type: string
-                        format: date-time
-                      updatedAt:
+                        enum: [start, stop]
+                      timestamp:
                         type: string
                         format: date-time
         "400":
@@ -421,19 +420,9 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Device ID harus diisi
-        "403":
-          description: Forbidden (Admin access required)
-
-  /device/connected:
-    get:
-      summary: Get all connected device (Admin only)
-      description: Mendapatkan daftar semua device yang terkoneksi ke WebSocket server
-      security:
-        - BearerAuth: []
-      responses:
-        "200":
-          description: Berhasil mendapatkan daftar device
+                    example: Command harus berupa "start" atau "stop"
+        "404":
+          description: Device tidak ditemukan
           content:
             application/json:
               schema:
@@ -441,51 +430,14 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Berhasil mendapatkan daftar device yang terkoneksi
-                  data:
-                    type: object
-                    properties:
-                      totalConnected:
-                        type: integer
-                        description: Jumlah total device yang terkoneksi
-                      device:
-                        type: array
-                        items:
-                          type: string
-                        description: Array dari device ID yang terkoneksi
-        "403":
-          description: Forbidden (Admin access required)
+                    example: Device tidak ditemukan
 
-  /device/unregistered:
+  /connection/unregistered:
     get:
-      summary: Get unregistered connected device (Admin only)
-      description: Mendapatkan daftar device yang terkoneksi ke WebSocket server tapi belum terdaftar di database
-      security:
-        - BearerAuth: []
+      summary: Get unregistered devices
       responses:
         "200":
-          description: Berhasil mendapatkan daftar device
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: Berhasil mendapatkan daftar device yang belum terdaftar
-                  data:
-                    type: object
-                    properties:
-                      totalUnregistered:
-                        type: integer
-                        description: Jumlah device yang belum terdaftar
-                      unregistereddevice:
-                        type: array
-                        items:
-                          type: string
-                        description: Array dari device ID yang belum terdaftar
-        "403":
-          description: Forbidden (Admin access required)
+          description: List of unregistered devices
 
   /connection/status:
     get:

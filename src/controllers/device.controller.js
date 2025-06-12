@@ -1,6 +1,6 @@
 const{ Device, User, Category } = require('../models');
 const { v4: uuidv4 } = require('uuid');
-const { getConnectionStatus, isTimerActive } = require('../wsClient');
+const { getConnectionStatus, isTimerActive, sendCommand } = require('../wsClient');
 
 //create device
 const createDevice = async (req, res) => {
@@ -191,46 +191,41 @@ const deleteDevice = async (req, res) => {
     }
 }
 
-// Mendapatkan semua device yang terkoneksi ke WebSocket
-const getAllConnectedDevices = async (req, res) => {
-    try {
-        const status = getConnectionStatus();
-        return res.status(200).json(status);
-    } catch (error) {
-        console.error('Get connected devices error:', error);
-        return res.status(500).json({
-            message: error.message
-        });
-    }
-};
+const sendDeviceCommand = async (req, res) => {
+    const { id } = req.params;
+    const { command } = req.body;
 
-// Mendapatkan device yang terkoneksi tapi belum terdaftar di database
-const getUnregisteredDevices = async (req, res) => {
     try {
-        // Ambil status koneksi
-        const status = getConnectionStatus();
-        
-        // Ambil device yang sudah terdaftar di database
-        const registeredDevices = await Device.findAll({
-            attributes: ['id']
+        // Validasi device exists di database
+        const device = await Device.findOne({
+            where: { id }
         });
-        
-        const registeredDeviceIds = registeredDevices.map(device => device.id);
-        
-        // Filter hanya device yang belum terdaftar
-        const unregisteredDevices = status.devices.filter(device => {
-            const deviceId = device.device_id || device.deviceId;
-            return !registeredDeviceIds.includes(deviceId);
+
+        if (!device) {
+            return res.status(404).json({
+                message: 'Device tidak ditemukan'
+            });
+        }
+
+        // Kirim command ke device
+        const result = await sendCommand({
+            deviceId: id,
+            command
         });
-        
-        // Kembalikan format yang sama dengan getConnectionStatus
+
+        if (!result.success) {
+            return res.status(400).json({
+                message: result.message
+            });
+        }
+
         return res.status(200).json({
-            totalClients: status.totalClients,
-            registeredDevices: unregisteredDevices.length,
-            devices: unregisteredDevices
+            message: `Berhasil mengirim perintah ${command} ke device`,
+            data: result.data
         });
+
     } catch (error) {
-        console.error('Get unregistered devices error:', error);
+        console.error('Send command error:', error);
         return res.status(500).json({
             message: error.message
         });
@@ -244,5 +239,6 @@ module.exports = {
     updateDevice,
     deleteDevice,
     getAllConnectedDevices,
-    getUnregisteredDevices
+    getUnregisteredDevices,
+    sendDeviceCommand
 }
