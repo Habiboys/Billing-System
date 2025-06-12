@@ -5,7 +5,7 @@ info:
   description: API documentation for the Billing System application
 servers:
   - url: http://34.50.77.4:3000/api
-    description: Deploy
+    description: Deploy yeah
   - url: https://sponge-quiet-brightly.ngrok-free.app/api
     description: tunel
   - url: http://localhost:3000/api
@@ -123,7 +123,7 @@ paths:
               example:
                 email: admin@gmail.com
                 password: admin123
-                
+
       responses:
         "200":
           description: Successful login
