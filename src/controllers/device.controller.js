@@ -4,11 +4,11 @@ const { getConnectionStatus, isTimerActive } = require('../wsClient');
 
 //create device
 const createDevice = async (req, res) => {
-    const {name, categoryId, deviceId} = req.body;
+    const {name, categoryId, id} = req.body;
 
     try{
         // Validasi input
-        if (!deviceId) {
+        if (!id) {
             return res.status(400).json({
                 message: 'Device ID harus diisi'
             });
@@ -22,7 +22,7 @@ const createDevice = async (req, res) => {
 
         // Cek koneksi websocket terlebih dahulu
         const connectedDevices = getConnectionStatus();
-        if (!connectedDevices.devices.includes(deviceId)) {
+        if (!connectedDevices.devices.includes(id)) {
             return res.status(400).json({
                 message: 'Device belum terkoneksi ke server WebSocket'
             });
@@ -31,7 +31,7 @@ const createDevice = async (req, res) => {
         // Cek apakah device sudah terdaftar
         const existingDevice = await Device.findOne({
             where: {
-                id: deviceId
+                id: id
             }
         });
 
@@ -43,7 +43,7 @@ const createDevice = async (req, res) => {
 
         // Buat device baru
         const device = await Device.create({
-            id: deviceId,
+            id: id,
             name,
             categoryId
         });
