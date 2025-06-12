@@ -439,6 +439,13 @@ paths:
         "200":
           description: List of unregistered devices
 
+  /connection/disconnected:
+    get:
+      summary: Get disconnected devices
+      responses:
+        "200":
+          description: List of disconnected devices
+
   /connection/status:
     get:
       summary: Get connection status
