@@ -3,9 +3,8 @@
 module.exports = {
   async up(queryInterface, Sequelize) {
     await queryInterface.createTable('Devices', {
-
       id: {
-          allowNull: false,
+        allowNull: false,
         primaryKey: true,
         type: Sequelize.STRING
       },
@@ -19,6 +18,16 @@ module.exports = {
           key: 'id'
         }
       },
+      timerStart: {
+        type: Sequelize.DATE,
+        allowNull: true
+      },
+      timerDuration: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        comment: 'Duration in milliseconds'
+      },
+  
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

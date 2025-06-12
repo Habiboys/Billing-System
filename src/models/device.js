@@ -24,12 +24,21 @@ module.exports = (sequelize, DataTypes) => {
   Device.init({
     id: {
       type: DataTypes.STRING,
-
       allowNull: false,
       primaryKey: true,
     },
     name: DataTypes.STRING,
-    categoryId: DataTypes.UUID
+    categoryId: DataTypes.UUID,
+    timerStart: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    timerDuration: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      comment: 'Duration in milliseconds'
+    }
+
   }, {
     sequelize,
     modelName: 'Device',

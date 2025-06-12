@@ -8,6 +8,7 @@ const{
     deleteDevice,
     sendDeviceCommand
 } = require('../controllers/device.controller');
+const { getDeviceTimer } = require('../controllers/transaction.controller');
 const{ tokenValidation, verifyAdmin} = require('../middlewares/auth.middleware');
 
 // Basic CRUD routes
@@ -19,5 +20,8 @@ router.delete('/delete/:id', tokenValidation, deleteDevice);
 
 // Command routes
 router.post('/:id/command', tokenValidation, sendDeviceCommand);
+
+// Timer routes
+router.get('/:id/timer', tokenValidation, getDeviceTimer);
 
 module.exports = router;

@@ -11,7 +11,7 @@ const createTransaction = async (req, res) => {
         // Validasi input
         if (!deviceId || !duration) {
             return res.status(400).json({
-                message: 'userId, deviceId, dan duration wajib diisi'
+                message: ' deviceId, dan duration wajib diisi'
             });
         }
 
@@ -41,6 +41,11 @@ const createTransaction = async (req, res) => {
         }
 
         const transactionId = uuidv4();
+     
+        await device.update({
+            timerStart: start,
+            timerDuration: duration,
+        });
         //
         // Buat transaksi
         const transaction = await Transaction.create({
