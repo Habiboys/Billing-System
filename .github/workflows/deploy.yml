@@ -1,0 +1,23 @@
+name: Deploy
+
+on:
+  push:
+    branches: [ Backend ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.VM_HOST }}
+        username: ${{ secrets.VM_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd ~/app || git clone https://github.com/${{ github.repository }}.git ~/app
+          cd ~/app
+          git pull
+          npm install
+          pm2 restart app || pm2 start app.js --name app
