@@ -65,6 +65,13 @@ components:
           type: string
           format: uuid
           description: ID kategori device
+        timerStart:
+          type: string
+          format: date-time
+          description: Waktu mulai timer
+        timerDuration:
+          type: integer
+          description: Durasi timer
         createdAt:
           type: string
           format: date-time
