@@ -12,7 +12,7 @@ const { tokenValidation, verifyAdmin } = require("../middlewares/auth.middleware
 router.post("/create", tokenValidation, createTransaction);
 
 // Get all transactions (admin only)
-router.get("/", tokenValidation, verifyAdmin, getAllTransactions);
+router.get("/", tokenValidation, getAllTransactions);
 
 // Get transaction by ID (memerlukan auth)
 router.get("/:id", tokenValidation, getTransactionById);

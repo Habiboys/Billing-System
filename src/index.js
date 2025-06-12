@@ -6,14 +6,7 @@ const swaggerUi = require('swagger-ui-express');
 const YAML = require('yamljs');
 const path = require('path');
 const cors = require('cors');
-//test
-//coba
-//coba2
-//coba3
-//coba4
-//coba5
-//coba6
-//coba7
+
 // Import routes
 const authRoutes = require('./routes/auth.route');
 const categoryRoutes = require('./routes/category.route');

@@ -23,8 +23,8 @@ module.exports = (sequelize, DataTypes) => {
   }
   Device.init({
     id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
+      type: DataTypes.STRING,
+
       allowNull: false,
       primaryKey: true,
     },

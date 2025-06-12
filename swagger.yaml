@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: API documentation for the Billing System application
 servers:
-  - url: http://20.251.153.107:3005/api
+  - url: http://34.50.77.4:3000/api
     description: Deploy
   - url: https://sponge-quiet-brightly.ngrok-free.app/api
     description: tunel
