@@ -88,7 +88,6 @@ components:
           format: uuid
         deviceId:
           type: string
-          format: uuid
         start:
           type: string
           format: date-time
@@ -500,10 +499,6 @@ paths:
             schema:
               type: object
               properties:
-                userId:
-                  type: string
-                  format: uuid
-                  description: ID user yang melakukan transaksi
                 deviceId:
                   type: string
                   description: ID device yang akan digunakan
