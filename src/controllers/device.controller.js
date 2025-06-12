@@ -238,7 +238,5 @@ module.exports = {
     getDeviceById,
     updateDevice,
     deleteDevice,
-    getAllConnectedDevices,
-    getUnregisteredDevices,
     sendDeviceCommand
 }

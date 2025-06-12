@@ -6,8 +6,6 @@ const{
     getDeviceById, 
     updateDevice, 
     deleteDevice,
-    getAllConnectedDevices,
-    getUnregisteredDevices,
     sendDeviceCommand
 } = require('../controllers/device.controller');
 const{ tokenValidation, verifyAdmin} = require('../middlewares/auth.middleware');
