@@ -13,8 +13,8 @@ const{ tokenValidation, verifyAdmin} = require('../middlewares/auth.middleware')
 
 // Basic CRUD routes
 router.post('/create', tokenValidation, verifyAdmin, createDevice);
-router.get('/', tokenValidation, verifyAdmin, getAllDevices);
-router.get('/:id', tokenValidation, verifyAdmin, getDeviceById);
+router.get('/', tokenValidation, getAllDevices);
+router.get('/:id', tokenValidation, getDeviceById);
 router.put('/update/:id', tokenValidation, verifyAdmin, updateDevice);
 router.delete('/delete/:id', tokenValidation, verifyAdmin, deleteDevice);
 
