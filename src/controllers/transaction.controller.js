@@ -6,14 +6,15 @@ const { v4: uuidv4 } = require('uuid');
 
 const createTransaction = async (req, res) => {
     try {
-        const { userId, deviceId, start, end, duration, cost } = req.body;
+        const {deviceId, start, end, duration, cost } = req.body;
         
         // Validasi input
-        if (!userId || !deviceId || !duration) {
+        if (!deviceId || !duration) {
             return res.status(400).json({
                 message: 'userId, deviceId, dan duration wajib diisi'
             });
         }
+
 
         // Cek apakah device terdaftar di database
         const device = await Device.findByPk(deviceId);
@@ -44,7 +45,7 @@ const createTransaction = async (req, res) => {
         // Buat transaksi
         const transaction = await Transaction.create({
             id: transactionId,
-            userId,
+            userId: req.user.id,
             deviceId,
             start,
             end,
