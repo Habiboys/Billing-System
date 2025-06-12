@@ -121,7 +121,7 @@ paths:
                 password:
                   type: string
               example:
-                email: admin@gmail.com
+                email: admin@example.com
                 password: admin123
 
       responses:
@@ -490,7 +490,7 @@ paths:
   /api/connection/status:
     get:
       summary: Get connection status
-      
+
       responses:
         "200":
           description: Connection status
