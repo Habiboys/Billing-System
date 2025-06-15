@@ -140,13 +140,14 @@ const getAllTransactions = async (req, res) => {
         const { count, rows: transactions } = await Transaction.findAndCountAll({
             where: whereClause,
             order: [['createdAt', 'DESC']],
-            include: [{
-                model: Device,
-                include: [{
-                    model: Category,
-                    as: 'category'  // Pastikan 'as' sesuai dengan alias yang didefinisikan di model
-                }]
-            }],
+            include: [
+                {
+                    model: Device,
+                    include: [{
+                        model: Category
+                    }]
+                }
+            ],
             limit: parseInt(limit),
             offset: offset
         });
@@ -261,13 +262,14 @@ const getTransactionsByUserId = async (req, res) => {
         const { count, rows: transactions } = await Transaction.findAndCountAll({
             where: whereClause,
             order: [['createdAt', 'DESC']],
-            include: [{
-                model: Device,
-                include: [{
-                    model: Category,
-                    as: 'category'
-                }]
-            }],
+            include: [
+                {
+                    model: Device,
+                    include: [{
+                        model: Category
+                    }]
+                }
+            ],
             limit: parseInt(limit),
             offset: offset
         });
