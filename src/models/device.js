@@ -45,7 +45,7 @@ module.exports = (sequelize, DataTypes) => {
       comment: 'Elapsed time in milliseconds'
     },
     timerStatus: {
-      type: DataTypes.ENUM('running', 'paused', 'stopped'),
+      type: DataTypes.ENUM('start', 'stop', 'end'),
       allowNull: true,
       defaultValue: null
     },

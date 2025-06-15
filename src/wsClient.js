@@ -3,6 +3,7 @@ const WebSocket = require('ws');
 let wss;
 let connectedClients = new Map(); // Menyimpan client berdasarkan deviceId
 let activeTimers = new Set(); // Menyimpan device yang sedang aktif timernya
+let pausedDevices = new Set(); // Menyimpan device yang timer-nya dihentikan
 
 function heartbeat() {
     this.isAlive = true;
@@ -70,6 +71,17 @@ const initWebSocketServer = (server) => {
                     console.log(`Timer completed for device ${deviceId}. Relay turned off.`);
                     // Hapus dari active timers karena timer sudah selesai
                     activeTimers.delete(deviceId);
+                    pausedDevices.delete(deviceId);
+                } else if (data.status === 'timer_paused') {
+                    const deviceId = data.device_id;
+                    console.log(`Timer paused for device ${deviceId}`);
+                    activeTimers.delete(deviceId);
+                    pausedDevices.add(deviceId);
+                } else if (data.status === 'timer_ended') {
+                    const deviceId = data.device_id;
+                    console.log(`Timer ended for device ${deviceId}`);
+                    activeTimers.delete(deviceId);
+                    pausedDevices.delete(deviceId);
                 }
                 
             } catch (error) {
@@ -210,10 +222,10 @@ const sendCommand = (data) => {
         };
     }
 
-    if (!command || !['start', 'stop'].includes(command)) {
+    if (!command || !['start', 'stop', 'end'].includes(command)) {
         return {
             success: false,
-            message: 'Command harus berupa "start" atau "stop"'
+            message: 'Command harus berupa "start", "stop", atau "end"'
         };
     }
     
@@ -254,11 +266,16 @@ const sendCommand = (data) => {
             timestamp: new Date().toISOString()
         };
 
-        // Set timer status jika command start
+        // Update timer status
         if (command === 'start') {
             activeTimers.add(deviceId);
+            pausedDevices.delete(deviceId);
         } else if (command === 'stop') {
             activeTimers.delete(deviceId);
+            pausedDevices.add(deviceId);
+        } else if (command === 'end') {
+            activeTimers.delete(deviceId);
+            pausedDevices.delete(deviceId);
         }
 
         // Kirim data
@@ -282,11 +299,19 @@ const sendCommand = (data) => {
 // Fungsi untuk mendapatkan status koneksi
 const getConnectionStatus = () => {
     // Ubah format data untuk memastikan konsistensi dengan device_id
-    const devices = Array.from(connectedClients.keys()).map(deviceId => ({
-        device_id: deviceId,
-        deviceId: deviceId,
-        status: isTimerActive(deviceId) ? 'on' : 'off'
-    }));
+    const devices = Array.from(connectedClients.keys()).map(deviceId => {
+        let status = 'off'; // Default status
+        if (isTimerActive(deviceId)) {
+            status = 'on';
+        } else if (pausedDevices.has(deviceId)) {
+            status = 'pause';
+        }
+        return {
+            device_id: deviceId,
+            deviceId: deviceId,
+            status: status
+        };
+    });
 
     console.log('Current connected devices:', devices);
 

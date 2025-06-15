@@ -211,14 +211,14 @@ const sendDeviceCommand = async (req, res) => {
 
         // Handle timer status berdasarkan command
         if (command === 'start') {
-            if (device.timerStatus === 'paused') {
+            if (device.timerStatus === 'stop') {
                 // Jika timer di-pause, hitung elapsed time
                 if (device.lastPausedAt) {
                     const pauseDuration = now - device.lastPausedAt;
                     // Update timer start dengan menambahkan durasi pause
                     await device.update({
                         timerStart: new Date(device.timerStart.getTime() + pauseDuration),
-                        timerStatus: 'running',
+                        timerStatus: 'start',
                         lastPausedAt: null
                     });
                 }
@@ -226,21 +226,30 @@ const sendDeviceCommand = async (req, res) => {
                 // Timer baru dimulai
                 await device.update({
                     timerStart: now,
-                    timerStatus: 'running',
+                    timerStatus: 'start',
                     timerElapsed: 0,
                     lastPausedAt: null
                 });
             }
         } else if (command === 'stop') {
-            if (device.timerStatus === 'running') {
+            if (device.timerStatus === 'start') {
                 // Hitung elapsed time saat ini
                 const elapsedTime = now - device.timerStart;
                 await device.update({
-                    timerStatus: 'paused',
+                    timerStatus: 'stop',
                     timerElapsed: device.timerElapsed + elapsedTime,
                     lastPausedAt: now
                 });
             }
+        } else if (command === 'end') {
+            // Reset semua status timer
+            await device.update({
+                timerStatus: 'end',
+                timerElapsed: 0,
+                timerStart: null,
+                lastPausedAt: null,
+                timerDuration: 0
+            });
         }
 
         // Kirim command ke device

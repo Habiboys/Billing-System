@@ -46,6 +46,7 @@ const createTransaction = async (req, res) => {
         await device.update({
             timerStart: start,
             timerDuration: duration,
+            timerStatus: 'start'
         });
         //
         // Buat transaksi

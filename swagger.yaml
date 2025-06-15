@@ -367,7 +367,7 @@ paths:
   /device/{id}/command:
     post:
       summary: Send command to device
-      description: Mengirim perintah start/stop ke device melalui WebSocket
+      description: Mengirim perintah start/stop/end ke device melalui WebSocket
       security:
         - BearerAuth: []
       parameters:
@@ -386,8 +386,8 @@ paths:
               properties:
                 command:
                   type: string
-                  enum: [start, stop]
-                  description: Perintah yang akan dikirim ke device
+                  enum: [start, stop, end]
+                  description: Perintah yang akan dikirim ke device (start = mulai timer, stop = pause timer, end = akhiri timer)
               required:
                 - command
               example:
@@ -406,17 +406,41 @@ paths:
                   data:
                     type: object
                     properties:
-                      type:
-                        type: string
-                        example: command
-                      device_id:
-                        type: string
                       command:
-                        type: string
-                        enum: [start, stop]
-                      timestamp:
-                        type: string
-                        format: date-time
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            example: command
+                          device_id:
+                            type: string
+                          command:
+                            type: string
+                            enum: [start, stop, end]
+                          timestamp:
+                            type: string
+                            format: date-time
+                      device:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                          timerStatus:
+                            type: string
+                            enum: [start, stop, end]
+                            description: Status timer device
+                          timerStart:
+                            type: string
+                            format: date-time
+                            nullable: true
+                          timerDuration:
+                            type: integer
+                          timerElapsed:
+                            type: integer
+                          lastPausedAt:
+                            type: string
+                            format: date-time
+                            nullable: true
         "400":
           description: Bad Request
           content:
@@ -426,7 +450,7 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Command harus berupa "start" atau "stop"
+                    example: Command harus berupa "start", "stop", atau "end"
         "404":
           description: Device tidak ditemukan
           content:
@@ -449,10 +473,38 @@ paths:
   /connection/status:
     get:
       summary: Get connection status
-
+      description: Mendapatkan status koneksi semua device yang terdaftar
+      security:
+        - BearerAuth: []
       responses:
         "200":
-          description: Connection status
+          description: Status koneksi berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalClients:
+                    type: integer
+                    description: Total client yang terkoneksi ke WebSocket
+                  registeredDevices:
+                    type: integer
+                    description: Total device yang terdaftar
+                  devices:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device
+                        deviceId:
+                          type: string
+                          description: ID device (alias)
+                        status:
+                          type: string
+                          enum: [on, off, pause]
+                          description: Status device (on = timer aktif, pause = device terkoneksi tapi timer dihentikan, off = device tidak terkoneksi)
 
   /transaction:
     get:
