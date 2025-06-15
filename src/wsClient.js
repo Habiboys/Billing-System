@@ -4,13 +4,37 @@ let wss;
 let connectedClients = new Map(); // Menyimpan client berdasarkan deviceId
 let activeTimers = new Set(); // Menyimpan device yang sedang aktif timernya
 
+function heartbeat() {
+    this.isAlive = true;
+}
+
 // Inisialisasi WebSocket Server
 const initWebSocketServer = (server) => {
     wss = new WebSocket.Server({ server });
     
+    // Interval untuk mengecek koneksi yang tidak aktif
+    const interval = setInterval(() => {
+        wss.clients.forEach((ws) => {
+            if (ws.isAlive === false) {
+                console.log('Client tidak merespon ping, menutup koneksi...');
+                return ws.terminate();
+            }
+
+            ws.isAlive = false;
+            ws.ping();
+        });
+    }, 30000); // Check setiap 30 detik
+
+    wss.on('close', () => {
+        clearInterval(interval);
+    });
+    
     wss.on('connection', (ws, req) => {
         console.log('New WebSocket connection');
         
+        ws.isAlive = true;
+        ws.on('pong', heartbeat);
+
         ws.on('message', (message) => {
             try {
                 const data = JSON.parse(message);

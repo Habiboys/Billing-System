@@ -25,9 +25,24 @@ module.exports = {
       timerDuration: {
         type: Sequelize.INTEGER,
         allowNull: true,
-        comment: 'Duration in milliseconds'
+        comment: 'Total duration in milliseconds'
       },
-  
+      timerElapsed: {
+        type: Sequelize.INTEGER,
+        allowNull: true,
+        defaultValue: 0,
+        comment: 'Elapsed time in milliseconds'
+      },
+      timerStatus: {
+        type: Sequelize.ENUM('running', 'paused', 'stopped'),
+        allowNull: true,
+        defaultValue: null
+      },
+      lastPausedAt: {
+        type: Sequelize.DATE,
+        allowNull: true,
+        comment: 'Timestamp when timer was last paused'
+      },
       createdAt: {
         allowNull: false,
         type: Sequelize.DATE

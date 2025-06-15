@@ -1,5 +1,5 @@
 // transactionController.js
-const { Transaction, Device } = require('../models');
+const { Transaction, Device, Category } = require('../models');
 const { sendToESP32, getConnectionStatus } = require('../wsClient');
 const { v4: uuidv4 } = require('uuid');
 
@@ -93,7 +93,15 @@ const createTransaction = async (req, res) => {
 const getAllTransactions = async (req, res) => {
     try {
         const transactions = await Transaction.findAll({
-            order: [['createdAt', 'DESC']]
+            order: [['createdAt', 'DESC']],
+            include: [
+                {
+                    model: Category
+                },
+                {
+                    model: Device
+                }
+            ]
         });
         
         return res.status(200).json({
