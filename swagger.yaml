@@ -441,16 +441,10 @@ paths:
   /connection/unregistered:
     get:
       summary: Get unregistered devices
-      responses:
-        "200":
-          description: List of unregistered devices
 
   /connection/disconnected:
     get:
       summary: Get disconnected devices
-      responses:
-        "200":
-          description: List of disconnected devices
 
   /connection/status:
     get:
@@ -462,12 +456,38 @@ paths:
 
   /transaction:
     get:
-      summary: Get all transactions
+      summary: Get all transactions (Admin only)
+      description: Mendapatkan daftar semua transaksi dengan filter tanggal dan pagination
       security:
         - BearerAuth: []
+      parameters:
+        - in: query
+          name: start_date
+          schema:
+            type: string
+            format: date
+          description: Tanggal mulai filter (format: YYYY-MM-DD)
+        - in: query
+          name: end_date
+          schema:
+            type: string
+            format: date
+          description: Tanggal selesai filter (format: YYYY-MM-DD)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Nomor halaman
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Jumlah data per halaman
       responses:
         "200":
-          description: Daftar semua transaksi
+          description: Daftar transaksi berhasil diambil
           content:
             application/json:
               schema:
@@ -477,11 +497,35 @@ paths:
                     type: string
                     example: Success
                   data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Transaction"
-        "500":
-          description: Internal Server Error
+                    type: object
+                    properties:
+                      transactions:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Transaction"
+                      pagination:
+                        type: object
+                        properties:
+                          totalItems:
+                            type: integer
+                            example: 100
+                          totalPages:
+                            type: integer
+                            example: 10
+                          currentPage:
+                            type: integer
+                            example: 1
+                          itemsPerPage:
+                            type: integer
+                            example: 10
+                          hasNextPage:
+                            type: boolean
+                            example: true
+                          hasPrevPage:
+                            type: boolean
+                            example: false
+        "400":
+          description: Format tanggal tidak valid
           content:
             application/json:
               schema:
@@ -489,9 +533,13 @@ paths:
                 properties:
                   message:
                     type: string
-                    example: Internal server error
-                  error:
-                    type: string
+                    example: Format tanggal mulai tidak valid (gunakan format: YYYY-MM-DD)
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden (Admin access required)
+        "500":
+          description: Internal Server Error
 
   /transaction/create:
     post:
@@ -615,22 +663,46 @@ paths:
         "500":
           description: Internal Server Error
 
-  /transaction/user/{userId}:
+  /transactions/user/{userId}:
     get:
+      tags:
+        - Transactions
       summary: Get transactions by user ID
-      security:
-        - BearerAuth: []
+      description: Retrieve all transactions for a specific user with pagination and date filtering
       parameters:
-        - in: path
-          name: userId
+        - name: userId
+          in: path
+          required: true
           schema:
             type: string
-            format: uuid
-          required: true
-          description: ID user yang transaksinya ingin diambil
+          description: ID of the user
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter transactions from this date (format: YYYY-MM-DD)
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: Filter transactions until this date (format: YYYY-MM-DD)
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
-        "200":
-          description: Daftar transaksi user
+        '200':
+          description: Successfully retrieved transactions
           content:
             application/json:
               schema:
@@ -640,11 +712,39 @@ paths:
                     type: string
                     example: Success
                   data:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Transaction"
-        "500":
-          description: Internal Server Error
+                    type: object
+                    properties:
+                      transactions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Transaction'
+                      pagination:
+                        type: object
+                        properties:
+                          totalItems:
+                            type: integer
+                          totalPages:
+                            type: integer
+                          currentPage:
+                            type: integer
+                          itemsPerPage:
+                            type: integer
+                          hasNextPage:
+                            type: boolean
+                          hasPrevPage:
+                            type: boolean
+        '400':
+          description: Invalid date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /transaction/update/{id}:
     put:

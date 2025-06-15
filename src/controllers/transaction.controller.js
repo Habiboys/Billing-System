@@ -2,6 +2,7 @@
 const { Transaction, Device, Category } = require('../models');
 const { sendToESP32, getConnectionStatus } = require('../wsClient');
 const { v4: uuidv4 } = require('uuid');
+const { Op } = require('sequelize');
 
 
 const createTransaction = async (req, res) => {
@@ -92,21 +93,79 @@ const createTransaction = async (req, res) => {
 
 const getAllTransactions = async (req, res) => {
     try {
-        const transactions = await Transaction.findAll({
+        const { 
+            start_date, 
+            end_date, 
+            page = 1, 
+            limit = 10 
+        } = req.query;
+
+        // Validasi format tanggal
+        const startDate = start_date ? new Date(start_date) : null;
+        const endDate = end_date ? new Date(end_date) : null;
+
+        if (start_date && isNaN(startDate.getTime())) {
+            return res.status(400).json({
+                message: 'Format tanggal mulai tidak valid (gunakan format: YYYY-MM-DD)'
+            });
+        }
+
+        if (end_date && isNaN(endDate.getTime())) {
+            return res.status(400).json({
+                message: 'Format tanggal selesai tidak valid (gunakan format: YYYY-MM-DD)'
+            });
+        }
+
+        // Konfigurasi where clause
+        const whereClause = {};
+        if (startDate && endDate) {
+            whereClause.createdAt = {
+                [Op.between]: [startDate, endDate]
+            };
+        } else if (startDate) {
+            whereClause.createdAt = {
+                [Op.gte]: startDate
+            };
+        } else if (endDate) {
+            whereClause.createdAt = {
+                [Op.lte]: endDate
+            };
+        }
+
+        // Hitung offset untuk pagination
+        const offset = (page - 1) * limit;
+
+        // Query dengan pagination dan filter
+        const { count, rows: transactions } = await Transaction.findAndCountAll({
+            where: whereClause,
             order: [['createdAt', 'DESC']],
-            include: [
-                {
-                    model: Category
-                },
-                {
-                    model: Device
-                }
-            ]
+            include: [{
+                model: Device,
+                include: [{
+                    model: Category,
+                    as: 'category'  // Pastikan 'as' sesuai dengan alias yang didefinisikan di model
+                }]
+            }],
+            limit: parseInt(limit),
+            offset: offset
         });
+
+        // Hitung total halaman
+        const totalPages = Math.ceil(count / limit);
         
         return res.status(200).json({
             message: 'Success',
-            data: transactions
+            data: {
+                transactions,
+                pagination: {
+                    totalItems: count,
+                    totalPages,
+                    currentPage: parseInt(page),
+                    itemsPerPage: parseInt(limit),
+                    hasNextPage: page < totalPages,
+                    hasPrevPage: page > 1
+                }
+            }
         });
     } catch (error) {
         console.error('Error getting transactions:', error);
@@ -122,7 +181,17 @@ const getTransactionById = async (req, res) => {
     
     try {
        
-        const transaction = await Transaction.findByPk(id);
+        const transaction = await Transaction.findByPk(id,
+            {
+                include: [{
+                    model: Device,
+                    include: [{
+                        model: Category,
+                        as: 'category'  // Pastikan 'as' sesuai dengan alias yang didefinisikan di model
+                    }]
+                }],
+            }
+        );
         
         if (!transaction) {
             return res.status(404).json({
@@ -145,18 +214,79 @@ const getTransactionById = async (req, res) => {
 
 const getTransactionsByUserId = async (req, res) => {
     const { userId } = req.params;
+    const { 
+        start_date, 
+        end_date, 
+        page = 1, 
+        limit = 10 
+    } = req.query;
     
     try {
-      
+        // Validasi format tanggal
+        const startDate = start_date ? new Date(start_date) : null;
+        const endDate = end_date ? new Date(end_date) : null;
 
-        const transactions = await Transaction.findAll({
-            where: { userId },
-            order: [['createdAt', 'DESC']]
+        if (start_date && isNaN(startDate.getTime())) {
+            return res.status(400).json({
+                message: 'Format tanggal mulai tidak valid (gunakan format: YYYY-MM-DD)'
+            });
+        }
+
+        if (end_date && isNaN(endDate.getTime())) {
+            return res.status(400).json({
+                message: 'Format tanggal selesai tidak valid (gunakan format: YYYY-MM-DD)'
+            });
+        }
+
+        // Konfigurasi where clause
+        const whereClause = { userId };
+        if (startDate && endDate) {
+            whereClause.createdAt = {
+                [Op.between]: [startDate, endDate]
+            };
+        } else if (startDate) {
+            whereClause.createdAt = {
+                [Op.gte]: startDate
+            };
+        } else if (endDate) {
+            whereClause.createdAt = {
+                [Op.lte]: endDate
+            };
+        }
+
+        // Hitung offset untuk pagination
+        const offset = (page - 1) * limit;
+
+        const { count, rows: transactions } = await Transaction.findAndCountAll({
+            where: whereClause,
+            order: [['createdAt', 'DESC']],
+            include: [{
+                model: Device,
+                include: [{
+                    model: Category,
+                    as: 'category'
+                }]
+            }],
+            limit: parseInt(limit),
+            offset: offset
         });
+
+        // Hitung total halaman
+        const totalPages = Math.ceil(count / limit);
         
         return res.status(200).json({
             message: 'Success',
-            data: transactions
+            data: {
+                transactions,
+                pagination: {
+                    totalItems: count,
+                    totalPages,
+                    currentPage: parseInt(page),
+                    itemsPerPage: parseInt(limit),
+                    hasNextPage: page < totalPages,
+                    hasPrevPage: page > 1
+                }
+            }
         });
     } catch (error) {
         console.error('Error getting user transactions:', error);
@@ -206,12 +336,7 @@ const deleteTransaction = async (req, res) => {
     const { id } = req.params;
     
     try {
-        // Validasi UUID format
-        if (!isValidUUID(id)) {
-            return res.status(400).json({
-                message: 'Invalid UUID format'
-            });
-        }
+    
 
         const transaction = await Transaction.findByPk(id);
         

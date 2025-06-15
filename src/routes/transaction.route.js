@@ -4,7 +4,9 @@ const {
     createTransaction,
     getAllTransactions,
     getTransactionById,
-    getTransactionsByUserId
+    getTransactionsByUserId,
+    updateTransaction,
+    deleteTransaction
 } = require("../controllers/transaction.controller");
 const { tokenValidation, verifyAdmin } = require("../middlewares/auth.middleware");
 
@@ -12,12 +14,18 @@ const { tokenValidation, verifyAdmin } = require("../middlewares/auth.middleware
 router.post("/create", tokenValidation, createTransaction);
 
 // Get all transactions (admin only)
-router.get("/", tokenValidation, getAllTransactions);
-//d
-// Get transaction by ID (memerlukan auth)
-router.get("/:id", tokenValidation, getTransactionById);
+router.get("/", tokenValidation,  getAllTransactions);
 
 // Get transactions by user ID (memerlukan auth)
 router.get("/user/:userId", tokenValidation, getTransactionsByUserId);
+
+// Get transaction by ID (memerlukan auth)
+router.get("/:id", tokenValidation, getTransactionById);
+
+// Update transaction (admin only)
+router.put("/:id", tokenValidation, updateTransaction);
+
+// Delete transaction (admin only)
+router.delete("/:id", tokenValidation,  deleteTransaction);
 
 module.exports = router;
