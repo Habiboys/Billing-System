@@ -66,7 +66,7 @@ const getAllDevices = async (req, res) => {
             include: [
                 {
                     model: Category,
-                    as: 'category'
+                    // as: 'category'
                 }
             ]
         });
@@ -109,7 +109,7 @@ const getDeviceById = async (req, res) => {
             include: [
                 {
                     model: Category,
-                    as: 'category'
+                    // as: 'category'
                 }
             ]
         });
