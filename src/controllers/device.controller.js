@@ -36,7 +36,11 @@ const createDevice = async (req, res) => {
         const existingDevice = await Device.findOne({
             where: {
                 id: id
-            }
+            },
+            include: [{
+                model: Category,
+                as: 'Category'
+            }]
         });
 
         if(existingDevice){
@@ -52,9 +56,18 @@ const createDevice = async (req, res) => {
             categoryId
         });
 
+        // Ambil data device dengan kategori
+        const deviceWithCategory = await Device.findOne({
+            where: { id: device.id },
+            include: [{
+                model: Category,
+                // as: 'Category'
+            }]
+        });
+
         return res.status(201).json({
             message: 'Device berhasil didaftarkan',
-            data: device
+            data: deviceWithCategory
         });
     } catch(error) {
         return res.status(500).json({
