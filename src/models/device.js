@@ -13,11 +13,11 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
       Device.belongsTo(models.Category, {
         foreignKey: 'categoryId',
-        as: 'category'
+        // as: 'category'
       })
       Device.hasMany(models.Transaction, {
         foreignKey: 'deviceId',
-        as: 'transactions'
+        // as: 'transactions'
       })
     }
   }

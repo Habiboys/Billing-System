@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
       // define association here
       Transaction.belongsTo(models.Device, {
         foreignKey: 'deviceId',
-        as: 'device'
+        // as: 'device'
       })
     }
   }
