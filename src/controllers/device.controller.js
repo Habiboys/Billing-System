@@ -22,7 +22,11 @@ const createDevice = async (req, res) => {
 
         // Cek koneksi websocket terlebih dahulu
         const connectedDevices = getConnectionStatus();
-        if (!connectedDevices.devices.includes(id)) {
+        const isConnected = connectedDevices.devices.some(device => 
+            device.device_id === id || device.deviceId === id
+        );
+        
+        if (!isConnected) {
             return res.status(400).json({
                 message: 'Device belum terkoneksi ke server WebSocket'
             });
@@ -63,12 +67,10 @@ const getAllDevices = async (req, res) => {
     try {
         // Ambil semua device dari database
         const devices = await Device.findAll({
-            include: [
-                {
-                    model: Category,
-                    // as: 'category'
-                }
-            ]
+            include: [{
+                model: Category,
+                as: 'Category'
+            }]
         });
 
         // Ambil status koneksi

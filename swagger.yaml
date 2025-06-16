@@ -462,18 +462,10 @@ paths:
                     type: string
                     example: Device tidak ditemukan
 
-  /connection/unregistered:
-    get:
-      summary: Get unregistered devices
-
-  /connection/disconnected:
-    get:
-      summary: Get disconnected devices
-
   /connection/status:
     get:
       summary: Get connection status
-      description: Mendapatkan status koneksi semua device yang terdaftar
+      description: Mendapatkan status koneksi semua device yang terhubung ke WebSocket server
       security:
         - BearerAuth: []
       responses:
@@ -505,6 +497,103 @@ paths:
                           type: string
                           enum: [on, off, pause]
                           description: Status device (on = timer aktif, pause = device terkoneksi tapi timer dihentikan, off = device tidak terkoneksi)
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
+
+  /connection/unregistered:
+    get:
+      summary: Get unregistered devices
+      description: Mendapatkan daftar device yang terkoneksi ke WebSocket tapi belum terdaftar di database
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar device berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Berhasil mendapatkan daftar device yang belum terdaftar
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device yang belum terdaftar
+                        status:
+                          type: string
+                          enum: [on, off, pause]
+                          description: Status device
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
+
+  /connection/disconnected:
+    get:
+      summary: Get disconnected devices
+      description: Mendapatkan daftar device yang terdaftar di database tapi tidak terkoneksi ke WebSocket
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar device berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Berhasil mendapatkan daftar device yang tidak terkoneksi
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: ID device
+                        name:
+                          type: string
+                          description: Nama device
+                        categoryId:
+                          type: string
+                          format: uuid
+                          description: ID kategori device
+                        lastConnected:
+                          type: string
+                          format: date-time
+                          description: Waktu terakhir device terkoneksi
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
 
   /transaction:
     get:
