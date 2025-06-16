@@ -233,8 +233,8 @@ const sendDeviceCommand = async (req, res) => {
             }
         } else if (command === 'stop') {
             if (device.timerStatus === 'start') {
-                // Hitung elapsed time saat ini
-                const elapsedTime = now - device.timerStart;
+                // Hitung elapsed time saat ini dalam detik
+                const elapsedTime = Math.floor((now - device.timerStart) / 1000);
                 await device.update({
                     timerStatus: 'stop',
                     timerElapsed: device.timerElapsed + elapsedTime,
