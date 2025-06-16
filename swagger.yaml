@@ -307,7 +307,7 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+      
           required: true
           description: ID of the device to retrieve
       responses:

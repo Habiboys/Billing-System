@@ -237,7 +237,7 @@ const sendDeviceCommand = async (req, res) => {
                 const elapsedTime = Math.floor((now - device.timerStart) / 1000);
                 await device.update({
                     timerStatus: 'stop',
-                    timerElapsed: device.timerElapsed + elapsedTime,
+                    timerElapsed: elapsedTime,
                     lastPausedAt: now
                 });
             }
