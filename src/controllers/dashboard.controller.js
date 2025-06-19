@@ -1,5 +1,6 @@
 const { getConnectionStatus, isTimerActive } = require('../wsClient');
 const { Device, Transaction, Category } = require('../models');
+const { Op } = require('sequelize');
 
 const dashboard = async (req, res) => {
     try {
@@ -8,16 +9,10 @@ const dashboard = async (req, res) => {
         
         // Mendapatkan data device dari database
         const devices = await Device.findAll({
-            include: [
-                {
-                    model: Transaction,
-                    limit: 1,
-                    order: [['createdAt', 'DESC']]
-                },
-                {
-                    model: Category
-                }
-            ]
+            include: [{
+                model: Category,
+                attributes: ['categoryName', 'cost', 'satuanWaktu']
+            }]
         });
         
         // Menghitung total device yang aktif dan tidak aktif
@@ -28,12 +23,13 @@ const dashboard = async (req, res) => {
         const activeDevicesDetail = await Promise.all(
             activeDevices.map(async (device) => {
                 const deviceData = devices.find(d => d.id === device.device_id);
-                const lastTransaction = deviceData?.Transactions?.[0];
                 
                 return {
                     device_id: deviceData?.id,
                     name: deviceData?.name,
-                    category: deviceData?.Category?.name,
+                    category: deviceData?.Category?.categoryName,
+                    category_cost: deviceData?.Category?.cost,
+                    satuan_waktu: deviceData?.Category?.satuanWaktu,
                     status: device.status,
                     timer_start: deviceData?.timerStart,
                     timer_duration: deviceData?.timerDuration,
@@ -44,31 +40,35 @@ const dashboard = async (req, res) => {
             })
         );
 
-        // Mengambil data last used devices
+        // Mengambil data last used devices dengan transaksi terakhir
         const lastUsedDevices = await Device.findAll({
             include: [
                 {
-                    model: Transaction,
-                    limit: 1,
-                    order: [['start', 'DESC']]
+                    model: Category,
+                    attributes: ['categoryName', 'cost', 'satuanWaktu']
                 },
                 {
-                    model: Category
+                    model: Transaction,
+                    separate: true,
+                    limit: 1,
+                    order: [['createdAt', 'DESC']]
                 }
             ],
             limit: 5,
-            order: [[Transaction, 'start', 'DESC']]
+            order: [[Transaction, 'createdAt', 'DESC']]
         });
 
         const lastUsedDevicesDetail = lastUsedDevices.map(device => ({
             device_id: device.id,
             name: device.name,
-            category: device.Category?.name,
+            category: device.Category?.categoryName,
+            category_cost: device.Category?.cost,
+            satuan_waktu: device.Category?.satuanWaktu,
             last_used: {
-                start_time: device.Transactions[0]?.start,
-                end_time: device.Transactions[0]?.end,
-                duration: device.Transactions[0]?.duration,
-                cost: device.Transactions[0]?.cost
+                start: device.Transactions?.[0]?.start,
+                end: device.Transactions?.[0]?.end,
+                duration: device.Transactions?.[0]?.duration,
+                cost: device.Transactions?.[0]?.cost
             }
         }));
         

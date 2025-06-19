@@ -1010,6 +1010,14 @@ paths:
                           type: string
                           description: Nama kategori device
                           example: "Gaming PC"
+                        category_cost:
+                          type: number
+                          description: Biaya per satuan waktu
+                          example: 10000
+                        satuan_waktu:
+                          type: string
+                          description: Satuan waktu untuk biaya
+                          example: "jam"
                         status:
                           type: string
                           enum: [on, off, pause]
@@ -1054,14 +1062,22 @@ paths:
                           type: string
                           description: Nama kategori device
                           example: "Gaming PC"
+                        category_cost:
+                          type: number
+                          description: Biaya per satuan waktu
+                          example: 10000
+                        satuan_waktu:
+                          type: string
+                          description: Satuan waktu untuk biaya
+                          example: "jam"
                         last_used:
                           type: object
                           properties:
-                            start_time:
+                            start:
                               type: string
                               format: date-time
                               description: Waktu mulai penggunaan terakhir
-                            end_time:
+                            end:
                               type: string
                               format: date-time
                               description: Waktu selesai penggunaan terakhir
@@ -1072,7 +1088,7 @@ paths:
                             cost:
                               type: number
                               format: float
-                              description: Biaya penggunaan
+                              description: Total biaya penggunaan
                               example: 15000
         "401":
           description: Unauthorized
