@@ -120,9 +120,18 @@ const getAllTransactions = async (req, res) => {
         // Konfigurasi where clause
         const whereClause = {};
         if (startDate && endDate) {
-            whereClause.createdAt = {
-                [Op.between]: [startDate, endDate]
-            };
+            // Jika tanggal sama, set waktu end_date ke akhir hari
+            if (startDate.toDateString() === endDate.toDateString()) {
+                const endOfDay = new Date(endDate);
+                endOfDay.setHours(23, 59, 59, 999);
+                whereClause.createdAt = {
+                    [Op.between]: [startDate, endOfDay]
+                };
+            } else {
+                whereClause.createdAt = {
+                    [Op.between]: [startDate, endDate]
+                };
+            }
         } else if (startDate) {
             whereClause.createdAt = {
                 [Op.gte]: startDate
@@ -177,6 +186,8 @@ const getAllTransactions = async (req, res) => {
         });
     }
 };
+
+
 
 const getTransactionById = async (req, res) => {
     const { id } = req.params;
