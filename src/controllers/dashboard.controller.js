@@ -1,5 +1,5 @@
 const { getConnectionStatus, isTimerActive } = require('../wsClient');
-const { Device, Transaction, Category } = require('../models');
+const { Device, Transaction, Category, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const dashboard = async (req, res) => {
@@ -46,31 +46,44 @@ const dashboard = async (req, res) => {
                 {
                     model: Category,
                     attributes: ['categoryName', 'cost', 'satuanWaktu']
-                },
-                {
-                    model: Transaction,
-                    separate: true,
-                    limit: 1,
-                    order: [['createdAt', 'DESC']]
                 }
             ],
-            limit: 5,
-            order: [[Transaction, 'createdAt', 'DESC']]
+            where: {
+                id: {
+                    [Op.in]: sequelize.literal(`(
+                        SELECT DISTINCT deviceId 
+                        FROM Transactions 
+                        ORDER BY createdAt DESC 
+                        LIMIT 5
+                    )`)
+                }
+            }
         });
 
-        const lastUsedDevicesDetail = lastUsedDevices.map(device => ({
-            device_id: device.id,
-            name: device.name,
-            category: device.Category?.categoryName,
-            category_cost: device.Category?.cost,
-            satuan_waktu: device.Category?.satuanWaktu,
-            last_used: {
-                start: device.Transactions?.[0]?.start,
-                end: device.Transactions?.[0]?.end,
-                duration: device.Transactions?.[0]?.duration,
-                cost: device.Transactions?.[0]?.cost
-            }
-        }));
+        // Mengambil transaksi terakhir untuk setiap device
+        const deviceTransactions = await Transaction.findAll({
+            where: {
+                deviceId: lastUsedDevices.map(d => d.id)
+            },
+            order: [['createdAt', 'DESC']]
+        });
+
+        const lastUsedDevicesDetail = lastUsedDevices.map(device => {
+            const lastTransaction = deviceTransactions.find(t => t.deviceId === device.id);
+            return {
+                device_id: device.id,
+                name: device.name,
+                category: device.Category?.categoryName,
+                category_cost: device.Category?.cost,
+                satuan_waktu: device.Category?.satuanWaktu,
+                last_used: lastTransaction ? {
+                    start: lastTransaction.start,
+                    end: lastTransaction.end,
+                    duration: lastTransaction.duration,
+                    cost: lastTransaction.cost
+                } : null
+            };
+        });
         
         // Menyiapkan data untuk response
         const response = {
