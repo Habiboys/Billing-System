@@ -1046,13 +1046,13 @@ paths:
                           description: Waktu terakhir timer di-pause
                   last_used_devices:
                     type: array
-                    description: Daftar 5 device terakhir yang digunakan
+                    description: Daftar 5 transaksi terakhir dengan detail device-nya
                     items:
                       type: object
                       properties:
                         device_id:
                           type: string
-                          description: ID device
+                          description: ID device dari transaksi terakhir
                           example: "device456"
                         name:
                           type: string
@@ -1064,11 +1064,11 @@ paths:
                           example: "Gaming PC"
                         category_cost:
                           type: number
-                          description: Biaya per satuan waktu
+                          description: Biaya per satuan waktu untuk kategori ini
                           example: 10000
                         satuan_waktu:
                           type: string
-                          description: Satuan waktu untuk biaya
+                          description: Satuan waktu untuk perhitungan biaya
                           example: "jam"
                         last_used:
                           type: object
@@ -1076,11 +1076,13 @@ paths:
                             start:
                               type: string
                               format: date-time
-                              description: Waktu mulai penggunaan terakhir
+                              description: Waktu mulai transaksi
+                              example: "2024-03-20T09:00:00Z"
                             end:
                               type: string
                               format: date-time
-                              description: Waktu selesai penggunaan terakhir
+                              description: Waktu selesai transaksi
+                              example: "2024-03-20T10:00:00Z"
                             duration:
                               type: integer
                               description: Durasi penggunaan dalam milidetik
@@ -1088,7 +1090,7 @@ paths:
                             cost:
                               type: number
                               format: float
-                              description: Total biaya penggunaan
+                              description: Total biaya transaksi aktual
                               example: 15000
         "401":
           description: Unauthorized

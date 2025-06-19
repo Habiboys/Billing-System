@@ -40,50 +40,33 @@ const dashboard = async (req, res) => {
             })
         );
 
-        // Mengambil data last used devices dengan transaksi terakhir
-        const lastUsedDevices = await Device.findAll({
-            include: [
-                {
+        // Mengambil 5 transaksi terakhir terlebih dahulu
+        const lastTransactions = await Transaction.findAll({
+            limit: 1,
+            order: [['createdAt', 'DESC']],
+            include: [{
+                model: Device,
+                include: [{
                     model: Category,
                     attributes: ['categoryName', 'cost', 'satuanWaktu']
-                }
-            ],
-            where: {
-                id: {
-                    [Op.in]: sequelize.literal(`(
-                        SELECT DISTINCT deviceId 
-                        FROM Transactions 
-                        ORDER BY createdAt DESC 
-                        LIMIT 5
-                    )`)
-                }
+                }]
+            }]
+        });
+
+        // Format data last used devices
+        const lastUsedDevicesDetail = lastTransactions.map(transaction => ({
+            device_id: transaction.Device?.id,
+            name: transaction.Device?.name,
+            category: transaction.Device?.Category?.categoryName,
+            category_cost: transaction.Device?.Category?.cost,
+            satuan_waktu: transaction.Device?.Category?.satuanWaktu,
+            last_used: {
+                start: transaction.start,
+                end: transaction.end,
+                duration: transaction.duration,
+                cost: transaction.cost // Ini adalah harga transaksi, bukan harga kategori
             }
-        });
-
-        // Mengambil transaksi terakhir untuk setiap device
-        const deviceTransactions = await Transaction.findAll({
-            where: {
-                deviceId: lastUsedDevices.map(d => d.id)
-            },
-            order: [['createdAt', 'DESC']]
-        });
-
-        const lastUsedDevicesDetail = lastUsedDevices.map(device => {
-            const lastTransaction = deviceTransactions.find(t => t.deviceId === device.id);
-            return {
-                device_id: device.id,
-                name: device.name,
-                category: device.Category?.categoryName,
-                category_cost: device.Category?.cost,
-                satuan_waktu: device.Category?.satuanWaktu,
-                last_used: lastTransaction ? {
-                    start: lastTransaction.start,
-                    end: lastTransaction.end,
-                    duration: lastTransaction.duration,
-                    cost: lastTransaction.cost
-                } : null
-            };
-        });
+        })).filter(device => device.device_id); // Filter out null devices
         
         // Menyiapkan data untuk response
         const response = {
