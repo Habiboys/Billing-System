@@ -966,3 +966,131 @@ paths:
           description: Transaksi tidak ditemukan
         "500":
           description: Internal Server Error
+
+  /dashboard:
+    get:
+      summary: Get dashboard information
+      description: Mendapatkan informasi dashboard termasuk status device aktif dan riwayat penggunaan
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Berhasil mendapatkan data dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      total_active:
+                        type: integer
+                        description: Jumlah device yang sedang aktif
+                        example: 3
+                      total_inactive:
+                        type: integer
+                        description: Jumlah device yang tidak aktif
+                        example: 5
+                  active_devices:
+                    type: array
+                    description: Daftar device yang sedang aktif
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device
+                          example: "device123"
+                        name:
+                          type: string
+                          description: Nama device
+                          example: "PC Gaming 01"
+                        category:
+                          type: string
+                          description: Nama kategori device
+                          example: "Gaming PC"
+                        status:
+                          type: string
+                          enum: [on, off, pause]
+                          description: Status device
+                          example: "on"
+                        timer_start:
+                          type: string
+                          format: date-time
+                          description: Waktu mulai timer
+                        timer_duration:
+                          type: integer
+                          description: Total durasi timer dalam milidetik
+                          example: 3600000
+                        timer_elapsed:
+                          type: integer
+                          description: Waktu yang telah berlalu dalam milidetik
+                          example: 1800000
+                        timer_status:
+                          type: string
+                          enum: [start, stop, end]
+                          description: Status timer device
+                          example: "start"
+                        last_paused_at:
+                          type: string
+                          format: date-time
+                          description: Waktu terakhir timer di-pause
+                  last_used_devices:
+                    type: array
+                    description: Daftar 5 device terakhir yang digunakan
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device
+                          example: "device456"
+                        name:
+                          type: string
+                          description: Nama device
+                          example: "PC Gaming 02"
+                        category:
+                          type: string
+                          description: Nama kategori device
+                          example: "Gaming PC"
+                        last_used:
+                          type: object
+                          properties:
+                            start_time:
+                              type: string
+                              format: date-time
+                              description: Waktu mulai penggunaan terakhir
+                            end_time:
+                              type: string
+                              format: date-time
+                              description: Waktu selesai penggunaan terakhir
+                            duration:
+                              type: integer
+                              description: Durasi penggunaan dalam milidetik
+                              example: 3600000
+                            cost:
+                              type: number
+                              format: float
+                              description: Biaya penggunaan
+                              example: 15000
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Terjadi kesalahan saat mengambil data dashboard
