@@ -28,7 +28,9 @@ module.exports = (sequelize, DataTypes) => {
     start: DataTypes.DATE,
     end: DataTypes.DATE,
     duration: DataTypes.INTEGER,
-    cost: DataTypes.INTEGER
+    cost: DataTypes.INTEGER,
+    createdAt: DataTypes.DATE,
+    updatedAt: DataTypes.DATE
   }, {
     sequelize,
     modelName: 'Transaction',
