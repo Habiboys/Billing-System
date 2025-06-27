@@ -198,7 +198,7 @@ const getTransactionById = async (req, res) => {
                     model: Device,
                     include: [{
                         model: Category,
-                        as: 'category'  // Pastikan 'as' sesuai dengan alias yang didefinisikan di model
+                        // as: 'category'  // Pastikan 'as' sesuai dengan alias yang didefinisikan di model
                     }]
                 }],
             }
