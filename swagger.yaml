@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: API documentation for the Billing System application
 servers:
-  - url: http://34.50.77.4:3000/api
+  - url: http://34.101.143.2:3000/api
     description: Deploy yeah
   - url: https://sponge-quiet-brightly.ngrok-free.app/api
     description: tunel
@@ -307,7 +307,7 @@ paths:
           name: id
           schema:
             type: string
-            format: uuid
+      
           required: true
           description: ID of the device to retrieve
       responses:
@@ -462,18 +462,10 @@ paths:
                     type: string
                     example: Device tidak ditemukan
 
-  /connection/unregistered:
-    get:
-      summary: Get unregistered devices
-
-  /connection/disconnected:
-    get:
-      summary: Get disconnected devices
-
   /connection/status:
     get:
       summary: Get connection status
-      description: Mendapatkan status koneksi semua device yang terdaftar
+      description: Mendapatkan status koneksi semua device yang terhubung ke WebSocket server
       security:
         - BearerAuth: []
       responses:
@@ -505,6 +497,103 @@ paths:
                           type: string
                           enum: [on, off, pause]
                           description: Status device (on = timer aktif, pause = device terkoneksi tapi timer dihentikan, off = device tidak terkoneksi)
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
+
+  /connection/unregistered:
+    get:
+      summary: Get unregistered devices
+      description: Mendapatkan daftar device yang terkoneksi ke WebSocket tapi belum terdaftar di database
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar device berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Berhasil mendapatkan daftar device yang belum terdaftar
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device yang belum terdaftar
+                        status:
+                          type: string
+                          enum: [on, off, pause]
+                          description: Status device
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
+
+  /connection/disconnected:
+    get:
+      summary: Get disconnected devices
+      description: Mendapatkan daftar device yang terdaftar di database tapi tidak terkoneksi ke WebSocket
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Daftar device berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Berhasil mendapatkan daftar device yang tidak terkoneksi
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          description: ID device
+                        name:
+                          type: string
+                          description: Nama device
+                        categoryId:
+                          type: string
+                          format: uuid
+                          description: ID kategori device
+                        lastConnected:
+                          type: string
+                          format: date-time
+                          description: Waktu terakhir device terkoneksi
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
 
   /transaction:
     get:
@@ -877,3 +966,149 @@ paths:
           description: Transaksi tidak ditemukan
         "500":
           description: Internal Server Error
+
+  /dashboard:
+    get:
+      summary: Get dashboard information
+      description: Mendapatkan informasi dashboard termasuk status device aktif dan riwayat penggunaan
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Berhasil mendapatkan data dashboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+                    properties:
+                      total_active:
+                        type: integer
+                        description: Jumlah device yang sedang aktif
+                        example: 3
+                      total_inactive:
+                        type: integer
+                        description: Jumlah device yang tidak aktif
+                        example: 5
+                  active_devices:
+                    type: array
+                    description: Daftar device yang sedang aktif
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device
+                          example: "device123"
+                        name:
+                          type: string
+                          description: Nama device
+                          example: "PC Gaming 01"
+                        category:
+                          type: string
+                          description: Nama kategori device
+                          example: "Gaming PC"
+                        category_cost:
+                          type: number
+                          description: Biaya per satuan waktu
+                          example: 10000
+                        satuan_waktu:
+                          type: string
+                          description: Satuan waktu untuk biaya
+                          example: "jam"
+                        status:
+                          type: string
+                          enum: [on, off, pause]
+                          description: Status device
+                          example: "on"
+                        timer_start:
+                          type: string
+                          format: date-time
+                          description: Waktu mulai timer
+                        timer_duration:
+                          type: integer
+                          description: Total durasi timer dalam milidetik
+                          example: 3600000
+                        timer_elapsed:
+                          type: integer
+                          description: Waktu yang telah berlalu dalam milidetik
+                          example: 1800000
+                        timer_status:
+                          type: string
+                          enum: [start, stop, end]
+                          description: Status timer device
+                          example: "start"
+                        last_paused_at:
+                          type: string
+                          format: date-time
+                          description: Waktu terakhir timer di-pause
+                  last_used_devices:
+                    type: array
+                    description: Daftar 5 transaksi terakhir dengan detail device-nya
+                    items:
+                      type: object
+                      properties:
+                        device_id:
+                          type: string
+                          description: ID device dari transaksi terakhir
+                          example: "device456"
+                        name:
+                          type: string
+                          description: Nama device
+                          example: "PC Gaming 02"
+                        category:
+                          type: string
+                          description: Nama kategori device
+                          example: "Gaming PC"
+                        category_cost:
+                          type: number
+                          description: Biaya per satuan waktu untuk kategori ini
+                          example: 10000
+                        satuan_waktu:
+                          type: string
+                          description: Satuan waktu untuk perhitungan biaya
+                          example: "jam"
+                        last_used:
+                          type: object
+                          properties:
+                            start:
+                              type: string
+                              format: date-time
+                              description: Waktu mulai transaksi
+                              example: "2024-03-20T09:00:00Z"
+                            end:
+                              type: string
+                              format: date-time
+                              description: Waktu selesai transaksi
+                              example: "2024-03-20T10:00:00Z"
+                            duration:
+                              type: integer
+                              description: Durasi penggunaan dalam milidetik
+                              example: 3600000
+                            cost:
+                              type: number
+                              format: float
+                              description: Total biaya transaksi aktual
+                              example: 15000
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Token tidak valid atau expired
+        "500":
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Terjadi kesalahan saat mengambil data dashboard

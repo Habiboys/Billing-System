@@ -22,7 +22,11 @@ const createDevice = async (req, res) => {
 
         // Cek koneksi websocket terlebih dahulu
         const connectedDevices = getConnectionStatus();
-        if (!connectedDevices.devices.includes(id)) {
+        const isConnected = connectedDevices.devices.some(device => 
+            device.device_id === id || device.deviceId === id
+        );
+        
+        if (!isConnected) {
             return res.status(400).json({
                 message: 'Device belum terkoneksi ke server WebSocket'
             });
@@ -32,7 +36,11 @@ const createDevice = async (req, res) => {
         const existingDevice = await Device.findOne({
             where: {
                 id: id
-            }
+            },
+            include: [{
+                model: Category,
+                as: 'Category'
+            }]
         });
 
         if(existingDevice){
@@ -48,9 +56,18 @@ const createDevice = async (req, res) => {
             categoryId
         });
 
+        // Ambil data device dengan kategori
+        const deviceWithCategory = await Device.findOne({
+            where: { id: device.id },
+            include: [{
+                model: Category,
+                // as: 'Category'
+            }]
+        });
+
         return res.status(201).json({
             message: 'Device berhasil didaftarkan',
-            data: device
+            data: deviceWithCategory
         });
     } catch(error) {
         return res.status(500).json({
@@ -63,12 +80,10 @@ const getAllDevices = async (req, res) => {
     try {
         // Ambil semua device dari database
         const devices = await Device.findAll({
-            include: [
-                {
-                    model: Category,
-                    as: 'category'
-                }
-            ]
+            include: [{
+                model: Category,
+                as: 'Category'
+            }]
         });
 
         // Ambil status koneksi
@@ -109,7 +124,7 @@ const getDeviceById = async (req, res) => {
             include: [
                 {
                     model: Category,
-                    as: 'category'
+                    // as: 'category'
                 }
             ]
         });
@@ -233,11 +248,11 @@ const sendDeviceCommand = async (req, res) => {
             }
         } else if (command === 'stop') {
             if (device.timerStatus === 'start') {
-                // Hitung elapsed time saat ini
-                const elapsedTime = now - device.timerStart;
+                // Hitung elapsed time saat ini dalam detik
+                const elapsedTime = Math.floor((now - device.timerStart) / 1000);
                 await device.update({
                     timerStatus: 'stop',
-                    timerElapsed: device.timerElapsed + elapsedTime,
+                    timerElapsed: elapsedTime,
                     lastPausedAt: now
                 });
             }
