@@ -62,8 +62,43 @@ const getUnregisteredDevices = async (req, res) => {
     }
 };
 
+// Endpoint untuk mobile client mendapatkan notifikasi real-time
+const getMobileNotifications = (req, res) => {
+    try {
+        // Set headers untuk SSE (Server-Sent Events)
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Cache-Control'
+        });
+
+        // Send initial connection message
+        res.write(`data: ${JSON.stringify({
+            type: 'connection_established',
+            timestamp: new Date().toISOString()
+        })}\n\n`);
+
+        // Store response object for later use
+        const clientId = Date.now();
+        wsClient.addMobileClient(clientId, res);
+
+        // Handle client disconnect
+        req.on('close', () => {
+            wsClient.removeMobileClient(clientId);
+            console.log(`Mobile client ${clientId} disconnected`);
+        });
+
+    } catch (error) {
+        console.error('Error setting up mobile notifications:', error);
+        res.status(500).json({ message: 'Failed to setup notifications', error: error.message });
+    }
+};
+
 module.exports = {
     getConnectionStatus,
     getUnregisteredDevices,
-    getDisconnectedDevices
+    getDisconnectedDevices,
+    getMobileNotifications
 };

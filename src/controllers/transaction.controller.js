@@ -1,8 +1,69 @@
 // transactionController.js
 const { Transaction, Device, Category } = require('../models');
-const { sendToESP32, getConnectionStatus } = require('../wsClient');
+const { sendToESP32, getConnectionStatus, onDeviceDisconnect, notifyMobileClients } = require('../wsClient');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
+
+// Register disconnect callback untuk semua device
+const registerDisconnectHandlers = () => {
+    onDeviceDisconnect('*', async (deviceId, reason) => {
+        console.log(`Device ${deviceId} disconnected with reason: ${reason}`);
+        
+        try {
+            // Cari device di database
+            const device = await Device.findByPk(deviceId);
+            if (!device) return;
+
+            // Jika device sedang memiliki timer aktif, update status
+            if (device.timerStatus === 'start') {
+                const now = new Date();
+                const elapsedTime = Math.floor((now - device.timerStart) / 1000);
+                
+                // Update device status
+                await device.update({
+                    timerStatus: 'disconnected',
+                    timerElapsed: elapsedTime,
+                    lastDisconnectAt: now
+                });
+
+                // Cari transaksi aktif untuk device ini
+                const activeTransaction = await Transaction.findOne({
+                    where: {
+                        deviceId: deviceId,
+                        end: null // Transaksi belum selesai
+                    },
+                    order: [['createdAt', 'DESC']]
+                });
+
+                if (activeTransaction) {
+                    // Update transaksi dengan waktu disconnect
+                    await activeTransaction.update({
+                        end: now,
+                        duration: elapsedTime,
+                        status: 'disconnected'
+                    });
+
+                    console.log(`Transaction ${activeTransaction.id} marked as disconnected for device ${deviceId}`);
+                }
+
+                // Notify mobile clients
+                notifyMobileClients({
+                    type: 'timer_disconnected',
+                    deviceId: deviceId,
+                    timestamp: now.toISOString(),
+                    reason: reason,
+                    elapsedTime: elapsedTime,
+                    transactionId: activeTransaction?.id
+                });
+            }
+        } catch (error) {
+            console.error(`Error handling disconnect for device ${deviceId}:`, error);
+        }
+    });
+};
+
+// Initialize disconnect handlers
+registerDisconnectHandlers();
 
 
 const createTransaction = async (req, res) => {

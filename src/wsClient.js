@@ -1,9 +1,14 @@
 const WebSocket = require('ws');
+const { Device } = require('./models');
 
 let wss;
 let connectedClients = new Map(); // Menyimpan client berdasarkan deviceId
 let activeTimers = new Set(); // Menyimpan device yang sedang aktif timernya
 let pausedDevices = new Set(); // Menyimpan device yang timer-nya dihentikan
+let lastActivityTime = new Map(); // Menyimpan waktu aktivitas terakhir per device
+let mobileClients = new Set(); // Menyimpan koneksi mobile untuk notifikasi
+let deviceDisconnectCallbacks = new Map(); // Callback untuk handle disconnect
+let sseClients = new Map(); // Menyimpan SSE clients untuk mobile notifications
 
 function heartbeat() {
     this.isAlive = true;
@@ -24,7 +29,7 @@ const initWebSocketServer = (server) => {
             ws.isAlive = false;
             ws.ping();
         });
-    }, 30000); // Check setiap 30 detik
+    }, 1000); // Check setiap 1 detik - untuk timer yang akurat
 
     wss.on('close', () => {
         clearInterval(interval);
@@ -43,6 +48,18 @@ const initWebSocketServer = (server) => {
                 
                 // Mendukung baik device_id maupun deviceId
                 const deviceId = data.deviceId || data.device_id;
+                
+                // Update waktu aktivitas terakhir
+                if (deviceId) {
+                    lastActivityTime.set(deviceId, Date.now());
+                }
+                
+                // Handle mobile client registration
+                if (data.type === 'mobile_client') {
+                    mobileClients.add(ws);
+                    console.log('Mobile client registered for notifications');
+                    return;
+                }
                 
                 // Jika ESP32 mengirim deviceId, simpan mapping
                 if (deviceId) {
@@ -90,14 +107,49 @@ const initWebSocketServer = (server) => {
             }
         });
         
-        ws.on('close', () => {
+        ws.on('close', async () => {
             console.log('Client disconnected');
-            // Remove dari mapping
+            
+            // Check if it's a mobile client
+            if (mobileClients.has(ws)) {
+                mobileClients.delete(ws);
+                console.log('Mobile client disconnected');
+                return;
+            }
+            
+            // Remove dari mapping untuk IoT device
             for (let [deviceId, client] of connectedClients.entries()) {
                 if (client === ws) {
                     connectedClients.delete(deviceId);
                     activeTimers.delete(deviceId);
                     console.log(`Device ${deviceId} unregistered`);
+                    
+                    // Notify mobile clients about device disconnect
+                    notifyMobileClients({
+                        type: 'device_disconnect',
+                        deviceId: deviceId,
+                        timestamp: new Date().toISOString(),
+                        reason: 'connection_lost'
+                    });
+                    const device = await Device.findByPk(deviceId);
+                    if (device && device.timerStatus === 'start') {
+                      const now = new Date();
+                      const elapsed = Math.floor((now - device.timerStart) / 1000);
+                      const remaining = device.timerDuration - elapsed;
+                      await device.update({
+                        timerStatus: 'stop',
+                        timerElapsed: elapsed,
+                        lastPausedAt: now,
+                        // bisa tambahkan field lain jika perlu
+                      });
+                    }
+                    
+                    // Execute disconnect callback if exists
+                    if (deviceDisconnectCallbacks.has(deviceId)) {
+                        const callback = deviceDisconnectCallbacks.get(deviceId);
+                        callback(deviceId, 'connection_lost');
+                    }
+                    
                     break;
                 }
             }
@@ -296,6 +348,52 @@ const sendCommand = (data) => {
     }
 };
 
+// Fungsi untuk notifikasi mobile clients
+const notifyMobileClients = (data) => {
+    // Notify WebSocket mobile clients
+    mobileClients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            try {
+                client.send(JSON.stringify(data));
+                console.log('Notification sent to WebSocket mobile client:', data);
+            } catch (error) {
+                console.error('Error sending notification to WebSocket mobile client:', error);
+                mobileClients.delete(client);
+            }
+        } else {
+            mobileClients.delete(client);
+        }
+    });
+
+    // Notify SSE mobile clients
+    sseClients.forEach((res, clientId) => {
+        try {
+            res.write(`data: ${JSON.stringify(data)}\n\n`);
+            console.log('Notification sent to SSE mobile client:', data);
+        } catch (error) {
+            console.error('Error sending notification to SSE mobile client:', error);
+            sseClients.delete(clientId);
+        }
+    });
+};
+
+// Fungsi untuk menambah SSE mobile client
+const addMobileClient = (clientId, res) => {
+    sseClients.set(clientId, res);
+    console.log(`SSE mobile client ${clientId} added`);
+};
+
+// Fungsi untuk menghapus SSE mobile client
+const removeMobileClient = (clientId) => {
+    sseClients.delete(clientId);
+    console.log(`SSE mobile client ${clientId} removed`);
+};
+
+// Fungsi untuk register callback ketika device disconnect
+const onDeviceDisconnect = (deviceId, callback) => {
+    deviceDisconnectCallbacks.set(deviceId, callback);
+};
+
 // Fungsi untuk mendapatkan status koneksi
 const getConnectionStatus = () => {
     // Ubah format data untuk memastikan konsistensi dengan device_id
@@ -327,5 +425,9 @@ module.exports = {
     sendToESP32,
     sendCommand,
     getConnectionStatus,
-    isTimerActive
+    isTimerActive,
+    notifyMobileClients,
+    onDeviceDisconnect,
+    addMobileClient,
+    removeMobileClient
 };
