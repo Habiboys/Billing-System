@@ -595,6 +595,35 @@ paths:
                     type: string
                     example: Token tidak valid atau expired
 
+  /connection/mobile/notifications:
+    get:
+      summary: Mendapatkan notifikasi real-time untuk mobile client
+      description: |
+        Endpoint ini menggunakan Server-Sent Events (SSE) untuk mengirim notifikasi real-time ke aplikasi mobile. Notifikasi dikirim ketika device disconnect atau timer berubah status.
+        
+        **Catatan:** Endpoint ini tidak membutuhkan autentikasi dan dapat diakses langsung oleh aplikasi mobile.
+      responses:
+        "200":
+          description: Koneksi SSE berhasil dibuka. Notifikasi akan dikirim dalam format event-stream.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"type":"device_disconnect","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","reason":"connection_lost"}\n\n
+        "500":
+          description: Gagal membuka koneksi SSE
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Failed to setup notifications
+                  error:
+                    type: string
+
   /transaction:
     get:
       summary: Get all transactions (Admin only)
