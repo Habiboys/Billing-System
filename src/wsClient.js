@@ -8,7 +8,7 @@ let pausedDevices = new Set(); // Menyimpan device yang timer-nya dihentikan
 let lastActivityTime = new Map(); // Menyimpan waktu aktivitas terakhir per device
 let mobileClients = new Set(); // Menyimpan koneksi mobile untuk notifikasi
 let deviceDisconnectCallbacks = new Map(); // Callback untuk handle disconnect
-let sseClients = new Map(); // Menyimpan SSE clients untuk mobile notifications
+// Hapus: let sseClients = new Map(); // Menyimpan SSE clients untuk mobile notifications
 
 function heartbeat() {
     this.isAlive = true;
@@ -80,6 +80,15 @@ const initWebSocketServer = (server) => {
                         status: 'success',
                         deviceId: deviceId
                     }));
+                    // Kirim notifikasi ke mobile client bahwa device connect
+                    notifyMobileClients({
+                        type: 'device_connect',
+                        deviceId: deviceId,
+                        timestamp: new Date().toISOString(),
+                        detail: {
+                            message: `Device ${deviceId} connected`
+                        }
+                    });
                 }
                 
                 // Handle status update dari ESP32
@@ -123,13 +132,15 @@ const initWebSocketServer = (server) => {
                     connectedClients.delete(deviceId);
                     activeTimers.delete(deviceId);
                     console.log(`Device ${deviceId} unregistered`);
-                    
-                    // Notify mobile clients about device disconnect
+                    // Kirim notifikasi ke mobile client bahwa device disconnect
                     notifyMobileClients({
                         type: 'device_disconnect',
                         deviceId: deviceId,
                         timestamp: new Date().toISOString(),
-                        reason: 'connection_lost'
+                        detail: {
+                            message: `Device ${deviceId} disconnected`,
+                            reason: 'connection_lost'
+                        }
                     });
                     const device = await Device.findByPk(deviceId);
                     if (device && device.timerStatus === 'start') {
@@ -348,7 +359,7 @@ const sendCommand = (data) => {
     }
 };
 
-// Fungsi untuk notifikasi mobile clients
+// Fungsi untuk notifikasi mobile clients (WebSocket saja)
 const notifyMobileClients = (data) => {
     // Notify WebSocket mobile clients
     mobileClients.forEach(client => {
@@ -364,29 +375,6 @@ const notifyMobileClients = (data) => {
             mobileClients.delete(client);
         }
     });
-
-    // Notify SSE mobile clients
-    sseClients.forEach((res, clientId) => {
-        try {
-            res.write(`data: ${JSON.stringify(data)}\n\n`);
-            console.log('Notification sent to SSE mobile client:', data);
-        } catch (error) {
-            console.error('Error sending notification to SSE mobile client:', error);
-            sseClients.delete(clientId);
-        }
-    });
-};
-
-// Fungsi untuk menambah SSE mobile client
-const addMobileClient = (clientId, res) => {
-    sseClients.set(clientId, res);
-    console.log(`SSE mobile client ${clientId} added`);
-};
-
-// Fungsi untuk menghapus SSE mobile client
-const removeMobileClient = (clientId) => {
-    sseClients.delete(clientId);
-    console.log(`SSE mobile client ${clientId} removed`);
 };
 
 // Fungsi untuk register callback ketika device disconnect
@@ -427,7 +415,5 @@ module.exports = {
     getConnectionStatus,
     isTimerActive,
     notifyMobileClients,
-    onDeviceDisconnect,
-    addMobileClient,
-    removeMobileClient
+    onDeviceDisconnect
 };
