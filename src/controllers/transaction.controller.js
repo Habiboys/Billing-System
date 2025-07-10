@@ -93,7 +93,7 @@ const createTransaction = async (req, res) => {
         
         // Cek apakah device ada dalam daftar yang terkoneksi
         const isConnected = connectedDevices.devices.some(device => 
-            device.device_id === deviceId || device.deviceId === deviceId
+            device.deviceId === deviceId || device.deviceId === deviceId
         );
         
         if (!isConnected) {

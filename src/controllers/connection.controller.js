@@ -16,7 +16,7 @@ const getConnectionStatus = (req, res) => {
 const getDisconnectedDevices = async (req, res) => {
     try {
         const connectedDevices = wsClient.getConnectionStatus().devices;
-        const connectedIds = connectedDevices.map(device => device.device_id);
+        const connectedIds = connectedDevices.map(device => device.deviceId);
 
         const devices = await Device.findAll({
             where: {
@@ -41,7 +41,7 @@ const getUnregisteredDevices = async (req, res) => {
     try {
         // Ambil semua device yang terkoneksi ke WebSocket
         const connectedDevices = wsClient.getConnectionStatus().devices;
-        const connectedIds = connectedDevices.map(device => device.device_id);
+        const connectedIds = connectedDevices.map(device => device.deviceId);
 
         // Ambil semua device yang sudah terdaftar di database
         const registeredDevices = await Device.findAll();
@@ -49,7 +49,7 @@ const getUnregisteredDevices = async (req, res) => {
 
         // Filter device yang terkoneksi tapi belum terdaftar
         const unregisteredDevices = connectedDevices.filter(device => 
-            !registeredIds.includes(device.device_id)
+            !registeredIds.includes(device.deviceId)
         );
 
         res.status(200).json({

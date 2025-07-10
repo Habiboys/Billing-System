@@ -22,7 +22,7 @@ const dashboard = async (req, res) => {
         // Mengambil detail device yang aktif dengan data dari database
         const activeDevicesDetail = await Promise.all(
             activeDevices.map(async (device) => {
-                const deviceData = devices.find(d => d.id === device.device_id);
+                const deviceData = devices.find(d => d.id === device.deviceId);
                 
                 return {
                     device_id: deviceData?.id,

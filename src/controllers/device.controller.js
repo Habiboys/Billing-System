@@ -23,7 +23,7 @@ const createDevice = async (req, res) => {
         // Cek koneksi websocket terlebih dahulu
         const connectedDevices = getConnectionStatus();
         const isConnected = connectedDevices.devices.some(device => 
-            device.device_id === id || device.deviceId === id
+            device.deviceId === id || device.deviceId === id
         );
         
         if (!isConnected) {

@@ -412,7 +412,7 @@ paths:
                           type:
                             type: string
                             example: command
-                          device_id:
+                          deviceId:
                             type: string
                           command:
                             type: string
@@ -487,9 +487,6 @@ paths:
                     items:
                       type: object
                       properties:
-                        device_id:
-                          type: string
-                          description: ID device
                         deviceId:
                           type: string
                           description: ID device (alias)
@@ -530,7 +527,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        device_id:
+                        deviceId:
                           type: string
                           description: ID device yang belum terdaftar
                         status:
@@ -1027,7 +1024,7 @@ paths:
                     items:
                       type: object
                       properties:
-                        device_id:
+                        deviceId:
                           type: string
                           description: ID device
                           example: "device123"

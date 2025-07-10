@@ -46,8 +46,8 @@ const initWebSocketServer = (server) => {
                 const data = JSON.parse(message);
                 console.log('Received from client:', data);
                 
-                // Mendukung baik device_id maupun deviceId
-                const deviceId = data.deviceId || data.device_id;
+                // Semua penggunaan device_id diganti menjadi deviceId (camelCase)
+                const deviceId = data.deviceId;
                 
                 // Update waktu aktivitas terakhir
                 if (deviceId) {
@@ -93,18 +93,18 @@ const initWebSocketServer = (server) => {
                 
                 // Handle status update dari ESP32
                 if (data.status === 'relay_off') {
-                    const deviceId = data.device_id;
+                    const deviceId = data.deviceId;
                     console.log(`Timer completed for device ${deviceId}. Relay turned off.`);
                     // Hapus dari active timers karena timer sudah selesai
                     activeTimers.delete(deviceId);
                     pausedDevices.delete(deviceId);
                 } else if (data.status === 'timer_paused') {
-                    const deviceId = data.device_id;
+                    const deviceId = data.deviceId;
                     console.log(`Timer paused for device ${deviceId}`);
                     activeTimers.delete(deviceId);
                     pausedDevices.add(deviceId);
                 } else if (data.status === 'timer_ended') {
-                    const deviceId = data.device_id;
+                    const deviceId = data.deviceId;
                     console.log(`Timer ended for device ${deviceId}`);
                     activeTimers.delete(deviceId);
                     pausedDevices.delete(deviceId);
@@ -189,7 +189,7 @@ const sendToESP32 = (data) => {
         };
     }
     
-    const deviceId = data.deviceId || data.device_id;
+    const deviceId = data.deviceId || data.deviceId;
     const { timer } = data;
     
     // Validasi input
@@ -236,10 +236,10 @@ const sendToESP32 = (data) => {
     }
 
     try {
-        // Format data untuk dikirim ke device
+        // Pada bagian pengiriman payload ke device (sendToESP32, sendCommand)
         const payload = {
             type: 'command',
-            device_id: deviceId, // Gunakan device_id untuk kompatibilitas
+            deviceId: deviceId, // gunakan deviceId saja
             timer,
             timestamp: new Date().toISOString()
         };
@@ -274,7 +274,7 @@ const sendCommand = (data) => {
         };
     }
     
-    const deviceId = data.deviceId || data.device_id;
+    const deviceId = data.deviceId || data.deviceId;
     const { command } = data;
     
     // Validasi input
@@ -321,10 +321,10 @@ const sendCommand = (data) => {
     }
 
     try {
-        // Format data untuk dikirim ke device
+        // Pada bagian pengiriman payload ke device (sendToESP32, sendCommand)
         const payload = {
             type: 'command',
-            device_id: deviceId,
+            deviceId: deviceId,
             command,
             timestamp: new Date().toISOString()
         };
@@ -392,6 +392,7 @@ const getConnectionStatus = () => {
         } else if (pausedDevices.has(deviceId)) {
             status = 'pause';
         }
+        // Pada bagian mapping status koneksi
         return {
             deviceId: deviceId,
             status: status
