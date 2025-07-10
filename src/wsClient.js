@@ -393,7 +393,6 @@ const getConnectionStatus = () => {
             status = 'pause';
         }
         return {
-            device_id: deviceId,
             deviceId: deviceId,
             status: status
         };
