@@ -6,7 +6,8 @@ const {
     getTransactionById,
     getTransactionsByUserId,
     updateTransaction,
-    deleteTransaction
+    deleteTransaction,
+    addTime
 } = require("../controllers/transaction.controller");
 const { tokenValidation, verifyAdmin } = require("../middlewares/auth.middleware");
 
@@ -27,5 +28,8 @@ router.put("/:id", tokenValidation, updateTransaction);
 
 // Delete transaction (admin only)
 router.delete("/:id", tokenValidation,  deleteTransaction);
+
+// Add time to transaction (memerlukan auth)
+router.post("/:transactionId/add-time", tokenValidation, addTime);
 
 module.exports = router;

@@ -1,6 +1,6 @@
 // transactionController.js
 const { Transaction, Device, Category } = require('../models');
-const { sendToESP32, getConnectionStatus, onDeviceDisconnect, notifyMobileClients } = require('../wsClient');
+const { sendToESP32, getConnectionStatus, onDeviceDisconnect, notifyMobileClients, sendAddTime } = require('../wsClient');
 const { v4: uuidv4 } = require('uuid');
 const { Op } = require('sequelize');
 
@@ -435,11 +435,153 @@ const deleteTransaction = async (req, res) => {
     }
 };
 
+// Fungsi untuk menambah waktu pada transaksi yang sedang aktif
+const addTime = async (req, res) => {
+    const { transactionId } = req.params;
+    const { additionalTime } = req.body;
+
+    try {
+        // Validasi input
+        if (!additionalTime || typeof additionalTime !== 'number' || additionalTime <= 0) {
+            return res.status(400).json({
+                message: 'Additional time harus berupa angka positif (dalam detik)'
+            });
+        }
+
+        // Cari transaksi yang sedang aktif
+        const transaction = await Transaction.findOne({
+            where: { 
+                id: transactionId,
+                end: null // Transaksi belum selesai
+            },
+            include: [{
+                model: Device,
+                include: [{
+                    model: Category
+                }]
+            }]
+        });
+
+        if (!transaction) {
+            return res.status(404).json({
+                message: 'Transaksi tidak ditemukan atau sudah selesai'
+            });
+        }
+
+        const device = transaction.Device;
+        
+        // Cek apakah device sedang memiliki timer aktif
+        if (device.timerStatus !== 'start') {
+            return res.status(400).json({
+                message: 'Device tidak memiliki timer yang aktif'
+            });
+        }
+
+        // Kirim perintah add time ke device
+        const result = await sendAddTime({
+            deviceId: device.id,
+            additionalTime: additionalTime
+        });
+
+        if (!result.success) {
+            return res.status(400).json({
+                message: result.message
+            });
+        }
+
+        // Update duration di transaksi dan device
+        const additionalTimeMs = additionalTime * 1000; // Convert to milliseconds
+        const newDuration = transaction.duration + additionalTimeMs;
+        const newDeviceDuration = device.timerDuration + additionalTimeMs;
+
+        // Update transaksi
+        await transaction.update({
+            duration: newDuration
+        });
+
+        // Update device timer duration
+        await device.update({
+            timerDuration: newDeviceDuration
+        });
+
+        // Hitung cost baru berdasarkan durasi baru
+        const category = device.Category;
+        let newCost = transaction.cost;
+        
+        if (category) {
+            // Hitung cost berdasarkan kategori
+            if (category.satuanWaktu === 'detik') {
+                newCost = Math.ceil(newDuration / 1000) * category.cost;
+            } else if (category.satuanWaktu === 'menit') {
+                newCost = Math.ceil(newDuration / 60000) * category.cost;
+            } else if (category.satuanWaktu === 'jam') {
+                newCost = Math.ceil(newDuration / 3600000) * category.cost;
+            }
+            
+            // Update cost di transaksi
+            await transaction.update({
+                cost: newCost
+            });
+        }
+
+        // Get updated transaction data
+        const updatedTransaction = await Transaction.findOne({
+            where: { id: transactionId },
+            include: [{
+                model: Device,
+                include: [{
+                    model: Category
+                }]
+            }]
+        });
+
+        // Notify mobile clients
+        notifyMobileClients({
+            type: 'transaction_time_added',
+            transactionId: transactionId,
+            deviceId: device.id,
+            additionalTime: additionalTime,
+            newDuration: newDuration,
+            newCost: newCost,
+            timestamp: new Date().toISOString()
+        });
+
+        return res.status(200).json({
+            message: `Berhasil menambah waktu ${additionalTime} detik ke transaksi`,
+            data: {
+                command: result.data,
+                transaction: {
+                    id: updatedTransaction.id,
+                    deviceId: updatedTransaction.deviceId,
+                    duration: updatedTransaction.duration,
+                    cost: updatedTransaction.cost,
+                    start: updatedTransaction.start,
+                    end: updatedTransaction.end
+                },
+                device: {
+                    id: device.id,
+                    name: device.name,
+                    timerStatus: device.timerStatus,
+                    timerDuration: device.timerDuration
+                },
+                addedTime: additionalTime
+            }
+        });
+
+    } catch (error) {
+        console.error('Add time to transaction error:', error);
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
 module.exports = { 
     createTransaction,
     getAllTransactions,
     getTransactionById,
     getTransactionsByUserId,
     updateTransaction,
-    deleteTransaction
+    deleteTransaction,
+    addTime
 };

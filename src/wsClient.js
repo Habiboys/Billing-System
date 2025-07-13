@@ -377,6 +377,87 @@ const notifyMobileClients = (data) => {
     });
 };
 
+// Fungsi untuk mengirim perintah add time ke ESP32
+const sendAddTime = (data) => {
+    if (!wss) {
+        return {
+            success: false,
+            message: 'WebSocket server not initialized'
+        };
+    }
+    
+    const deviceId = data.deviceId;
+    const { additionalTime } = data;
+    
+    // Validasi input
+    if (!deviceId) {
+        return {
+            success: false,
+            message: 'Device ID is required'
+        };
+    }
+
+    if (!additionalTime || typeof additionalTime !== 'number' || additionalTime <= 0) {
+        return {
+            success: false,
+            message: 'Additional time must be a positive number'
+        };
+    }
+    
+    // Cek apakah device terdaftar
+    if (!connectedClients.has(deviceId)) {
+        return {
+            success: false,
+            message: `Device ${deviceId} not registered`
+        };
+    }
+
+    // Cek apakah device sedang memiliki timer aktif
+    if (!isTimerActive(deviceId)) {
+        return {
+            success: false,
+            message: `Device ${deviceId} tidak memiliki timer yang aktif`
+        };
+    }
+
+    // Ambil koneksi WebSocket untuk device
+    const client = connectedClients.get(deviceId);
+    
+    // Cek status koneksi
+    if (client.readyState !== WebSocket.OPEN) {
+        connectedClients.delete(deviceId);
+        return {
+            success: false,
+            message: `Device ${deviceId} connection is not open`
+        };
+    }
+
+    try {
+        const payload = {
+            type: 'add_time',
+            deviceId: deviceId,
+            additionalTime: additionalTime,
+            timestamp: new Date().toISOString()
+        };
+
+        // Kirim data
+        client.send(JSON.stringify(payload));
+        console.log(`Add time command sent to device ${deviceId}:`, payload);
+        
+        return {
+            success: true,
+            message: `Add time command sent to device ${deviceId}`,
+            data: payload
+        };
+    } catch (error) {
+        console.error(`Error sending add time to device ${deviceId}:`, error);
+        return {
+            success: false,
+            message: `Error sending add time: ${error.message}`
+        };
+    }
+};
+
 // Fungsi untuk register callback ketika device disconnect
 const onDeviceDisconnect = (deviceId, callback) => {
     deviceDisconnectCallbacks.set(deviceId, callback);
@@ -412,6 +493,7 @@ module.exports = {
     initWebSocketServer,
     sendToESP32,
     sendCommand,
+    sendAddTime,
     getConnectionStatus,
     isTimerActive,
     notifyMobileClients,
