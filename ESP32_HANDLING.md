@@ -204,13 +204,15 @@ void onWebSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       Serial.println("Disconnected from WebSocket");
-      // Jangan reset timer state, biarkan tetap seperti saat disconnect
+      // Ketika disconnect, langsung pause timer jika sedang berjalan
+      handleDisconnect();
       break;
       
     case WStype_CONNECTED:
       Serial.println("Connected to WebSocket");
-      // Send registration
       sendRegistration();
+      // Ketika reconnect, kirim status current timer
+      handleReconnection();
       break;
       
     case WStype_TEXT:
@@ -246,16 +248,37 @@ void handleWebSocketMessage(uint8_t * payload, size_t length) {
 }
 ```
 
-### 2.9 Reconnection Handler
+### 2.9 Disconnect Handler
+```cpp
+void handleDisconnect() {
+  // Ketika disconnect, langsung pause timer jika sedang berjalan
+  if (timerState.isRunning && !timerState.isPaused) {
+    timerState.isPaused = true;
+    timerState.pauseTime = millis();
+    
+    // Turn off relay untuk safety
+    digitalWrite(RELAY_PIN, LOW);
+    
+    Serial.println("Timer paused due to disconnect");
+    Serial.printf("Remaining time: %lu seconds\n", timerState.remainingTime);
+  }
+}
+```
+
+### 2.10 Reconnection Handler
 ```cpp
 void handleReconnection() {
   // Ketika terhubung kembali, kirim status current timer
   if (timerState.isRunning) {
     if (timerState.isPaused) {
+      Serial.println("Device reconnected - Timer is paused");
       sendStatusUpdate("timer_paused");
     } else {
+      Serial.println("Device reconnected - Timer is running");
       sendStatusUpdate("timer_running");
     }
+  } else {
+    Serial.println("Device reconnected - No active timer");
   }
 }
 ```
@@ -350,7 +373,33 @@ void loop() {
 }
 ```
 
-### 4.4 Timer Completed
+### 4.4 Timer Paused (Disconnect)
+```json
+{
+  "type": "status_update",
+  "deviceId": "ESP32_001",
+  "status": "timer_paused",
+  "remainingTime": 1800,
+  "elapsedTime": 1800,
+  "reason": "disconnect",
+  "canResume": true,
+  "timestamp": "2024-01-01T12:00:00.000Z"
+}
+```
+
+### 4.5 Timer Running (Reconnect)
+```json
+{
+  "type": "status_update",
+  "deviceId": "ESP32_001",
+  "status": "timer_running",
+  "remainingTime": 1800,
+  "elapsedTime": 1800,
+  "timestamp": "2024-01-01T12:00:00.000Z"
+}
+```
+
+### 4.6 Timer Completed
 ```json
 {
   "type": "status_update",
@@ -360,7 +409,7 @@ void loop() {
 }
 ```
 
-### 4.5 Time Added
+### 4.7 Time Added
 ```json
 {
   "type": "status_update",
@@ -375,8 +424,11 @@ void loop() {
 ### 5.1 Disconnect saat Timer Berjalan
 1. Start timer di ESP32
 2. Disconnect WiFi/power
-3. Reconnect setelah beberapa detik
-4. Verify timer otomatis resume dengan waktu yang tepat
+3. Verify timer langsung pause dan relay OFF
+4. Reconnect setelah beberapa detik
+5. Verify ESP32 kirim status "timer_paused"
+6. Send resume command dari server
+7. Verify timer resume dengan waktu yang tepat
 
 ### 5.2 Manual Pause/Resume
 1. Start timer

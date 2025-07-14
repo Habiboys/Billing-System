@@ -30,6 +30,8 @@ void handleStartCommand(JsonDocument& doc);
 void handleStopCommand(JsonDocument& doc);
 void handleEndCommand(JsonDocument& doc);
 void handleAddTimeCommand(JsonDocument& doc);
+void handleDisconnect();
+void handleReconnection();
 void sendStatusUpdate(String status);
 void sendRegistration();
 void sendHeartbeat();
@@ -98,12 +100,15 @@ void onWebSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
   switch(type) {
     case WStype_DISCONNECTED:
       Serial.println("Disconnected from WebSocket");
-      // Don't reset timer state, keep it as is during disconnect
+      // Ketika disconnect, langsung pause timer jika sedang berjalan
+      handleDisconnect();
       break;
       
     case WStype_CONNECTED:
       Serial.println("Connected to WebSocket");
       sendRegistration();
+      // Ketika reconnect, kirim status current timer
+      handleReconnection();
       break;
       
     case WStype_TEXT:
@@ -159,6 +164,8 @@ void handleStartCommand(JsonDocument& doc) {
       digitalWrite(RELAY_PIN, HIGH);
       
       Serial.println("Timer resumed");
+      Serial.printf("Pause duration: %lu ms\n", pauseDuration);
+      Serial.printf("Remaining time: %lu seconds\n", timerState.remainingTime);
       sendStatusUpdate("timer_resumed");
       
     } else if (!timerState.isRunning) {
@@ -229,6 +236,40 @@ void handleAddTimeCommand(JsonDocument& doc) {
   }
 }
 
+void handleDisconnect() {
+  // Ketika disconnect, langsung pause timer jika sedang berjalan
+  if (timerState.isRunning && !timerState.isPaused) {
+    timerState.isPaused = true;
+    timerState.pauseTime = millis();
+    
+    // Turn off relay untuk safety
+    digitalWrite(RELAY_PIN, LOW);
+    
+    Serial.println("Timer paused due to disconnect");
+    Serial.printf("Remaining time: %lu seconds\n", timerState.remainingTime);
+    
+    // Catat waktu disconnect untuk debugging
+    Serial.printf("Disconnect time: %lu ms\n", timerState.pauseTime);
+  }
+}
+
+void handleReconnection() {
+  // Ketika reconnect, kirim status current timer
+  if (timerState.isRunning) {
+    if (timerState.isPaused) {
+      Serial.println("Device reconnected - Timer is paused");
+      // Kirim status bahwa timer di-pause
+      sendStatusUpdate("timer_paused");
+    } else {
+      Serial.println("Device reconnected - Timer is running");
+      // Kirim status bahwa timer sedang berjalan
+      sendStatusUpdate("timer_running");
+    }
+  } else {
+    Serial.println("Device reconnected - No active timer");
+  }
+}
+
 void sendStatusUpdate(String status) {
   StaticJsonDocument<512> doc;
   doc["type"] = "status_update";
@@ -236,9 +277,15 @@ void sendStatusUpdate(String status) {
   doc["status"] = status;
   doc["timestamp"] = getCurrentTimestamp();
   
-  if (status == "timer_paused" || status == "timer_resumed") {
+  if (status == "timer_paused" || status == "timer_resumed" || status == "timer_running") {
     doc["remainingTime"] = timerState.remainingTime;
     doc["elapsedTime"] = timerState.duration - timerState.remainingTime;
+  }
+  
+  // Tambahkan informasi tambahan untuk disconnect
+  if (status == "timer_paused" && timerState.isPaused) {
+    doc["reason"] = "disconnect";
+    doc["canResume"] = true;
   }
   
   String jsonString;
