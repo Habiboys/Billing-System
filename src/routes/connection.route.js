@@ -125,42 +125,6 @@ function getStatusMessage(deviceStatus, isTimerActive, isTimerPaused, canResume)
     }
 }
 
-// Send command to device (start/stop/end - termasuk resume timer)
-router.post("/device/:deviceId/command", async (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        const { command } = req.body;
-        
-        if (!command || !['start', 'stop', 'end'].includes(command)) {
-            return res.status(400).json({
-                message: 'Command harus berupa "start", "stop", atau "end"'
-            });
-        }
-        
-        const { sendCommand } = require("../wsClient");
-        const result = await sendCommand({
-            deviceId: deviceId,
-            command: command
-        });
-        
-        if (result.success) {
-            return res.status(200).json({
-                message: result.message,
-                data: result.data
-            });
-        } else {
-            return res.status(400).json({
-                message: result.message
-            });
-        }
-        
-    } catch (error) {
-        console.error('Command error:', error);
-        return res.status(500).json({
-            message: 'Terjadi kesalahan saat mengirim command',
-            error: error.message
-        });
-    }
-});
+
 
 module.exports = router;

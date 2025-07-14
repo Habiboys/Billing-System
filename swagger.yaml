@@ -15,7 +15,7 @@ info:
     - `add_time`: Menambah waktu ke timer yang sedang berjalan
     
     ### Endpoint Command:
-    - `POST /connection/device/{deviceId}/command`: Mengirim command start/stop/end (termasuk resume timer otomatis)
+    - `POST /device/{id}/command`: Mengirim command start/stop/end (termasuk resume timer otomatis)
     
     ### Status dari ESP32 ke Server:
     - `timer_started`: Timer baru dimulai
@@ -821,7 +821,15 @@ paths:
     post:
       summary: Add time to active transaction
       tags: [Transaction]
-      description: Menambah waktu pada transaksi yang sedang aktif
+      description: |
+        Menambah waktu pada transaksi yang sedang aktif.
+        
+        **Validasi:**
+        - Transaksi harus ada dan belum selesai (end = null)
+        - Device harus memiliki timer yang aktif (timerStatus = 'start')
+        - Device tidak boleh memiliki timer yang di-pause di WebSocket
+        
+        **Jika device memiliki timer yang di-pause, resume timer terlebih dahulu menggunakan command start.**
       security:
         - BearerAuth: []
       parameters:
@@ -867,7 +875,17 @@ paths:
                       addedTime:
                         type: integer
         "400":
-          description: Device tidak memiliki timer yang aktif
+          description: Device tidak memiliki timer yang aktif atau timer di-pause
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    examples:
+                      timer_not_active: "Device tidak memiliki timer yang aktif. Timer mungkin sudah selesai atau belum dimulai."
+                      timer_paused: "Device memiliki timer yang di-pause. Harap resume timer terlebih dahulu sebelum menambah waktu."
         "404":
           description: Transaksi tidak ditemukan atau sudah selesai
 
@@ -992,84 +1010,7 @@ paths:
                   error:
                     type: string
 
-  /connection/device/{deviceId}/command:
-    post:
-      summary: Send command to device (start/stop/end - termasuk resume timer)
-      tags: [Connection]
-      description: |
-        Mengirim command ke device ESP32. Command "start" akan otomatis handle resume timer jika device memiliki timer yang di-pause.
-        - start: Memulai timer baru atau melanjutkan timer yang di-pause
-        - stop: Menghentikan timer (pause)
-        - end: Mengakhiri timer secara permanen
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                command:
-                  type: string
-                  enum: [start, stop, end]
-                  description: Command yang akan dikirim ke device
-              required:
-                - command
-              example:
-                command: "start"
-      parameters:
-        - in: path
-          name: deviceId
-          schema:
-            type: string
-          required: true
-          description: Device ID yang akan dikirim command
-      responses:
-        "200":
-          description: Command berhasil dikirim
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Command start sent to device abc123"
-                  data:
-                    type: object
-                    properties:
-                      type:
-                        type: string
-                        example: "command"
-                      deviceId:
-                        type: string
-                        example: "abc123"
-                      command:
-                        type: string
-                        example: "start"
-                      timestamp:
-                        type: string
-                        format: date-time
-        "400":
-          description: Command tidak valid atau device tidak siap
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Device tidak memiliki timer yang bisa di-resume"
-        "500":
-          description: Terjadi kesalahan saat mengirim command
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  error:
-                    type: string
+
 
   /connection/device/{deviceId}/timer-status:
     get:

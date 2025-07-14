@@ -497,10 +497,18 @@ const addTime = async (req, res) => {
 
         const device = transaction.Device;
         
-        // Cek apakah device sedang memiliki timer aktif
+        // Cek apakah device sedang memiliki timer aktif atau di-pause
         if (device.timerStatus !== 'start') {
             return res.status(400).json({
-                message: 'Device tidak memiliki timer yang aktif'
+                message: 'Device tidak memiliki timer yang aktif. Timer mungkin sudah selesai atau belum dimulai.'
+            });
+        }
+
+        // Cek apakah device memiliki timer yang di-pause di WebSocket
+        const { isTimerPaused } = require('../wsClient');
+        if (isTimerPaused(device.id)) {
+            return res.status(400).json({
+                message: 'Device memiliki timer yang di-pause. Harap resume timer terlebih dahulu sebelum menambah waktu.'
             });
         }
 
