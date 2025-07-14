@@ -58,6 +58,75 @@ const handleTimerCompletion = async (deviceId) => {
     }
 };
 
+// Fungsi untuk handle auto resume timer saat reconnect
+const handleAutoResume = async (deviceId, ws) => {
+    try {
+        const { Device, Transaction } = require('./models');
+        
+        // Cek device di database
+        const device = await Device.findByPk(deviceId);
+        if (!device || device.timerStatus !== 'start' || !device.lastPausedAt) {
+            console.log(`Device ${deviceId} tidak memiliki timer yang bisa di-resume`);
+            return;
+        }
+        
+        const now = new Date();
+        const pauseDuration = now - device.lastPausedAt;
+        
+        // Update timer start dengan menambahkan durasi pause
+        await device.update({
+            timerStart: new Date(device.timerStart.getTime() + pauseDuration),
+            lastPausedAt: null
+        });
+        
+        // Cari transaksi aktif dan update status
+        const activeTransaction = await Transaction.findOne({
+            where: {
+                deviceId: deviceId,
+                end: null
+            },
+            order: [['createdAt', 'DESC']]
+        });
+        
+        if (activeTransaction && activeTransaction.status) {
+            await activeTransaction.update({
+                status: 'active'
+            });
+        }
+        
+        // Kirim command resume ke ESP32
+        const payload = {
+            type: 'command',
+            deviceId: deviceId,
+            command: 'start',
+            timestamp: new Date().toISOString()
+        };
+        
+        ws.send(JSON.stringify(payload));
+        console.log(`Auto resume command sent to device ${deviceId}:`, payload);
+        
+        // Update status WebSocket
+        activeTimers.add(deviceId);
+        pausedDevices.delete(deviceId);
+        
+        // Notify mobile clients
+        notifyMobileClients({
+            type: 'timer_auto_resumed',
+            deviceId: deviceId,
+            timestamp: now.toISOString(),
+            detail: {
+                message: `Timer auto resumed for device ${deviceId} after reconnect`,
+                transactionId: activeTransaction?.id
+            }
+        });
+        
+        console.log(`Timer auto resumed for device ${deviceId} with pause duration: ${pauseDuration}ms`);
+        
+    } catch (error) {
+        console.error(`Error handling auto resume for device ${deviceId}:`, error);
+    }
+};
+
 function heartbeat() {
     this.isAlive = true;
 }
@@ -124,21 +193,10 @@ const initWebSocketServer = (server) => {
                     
                     // Cek apakah device memiliki timer yang di-pause
                     if (pausedDevices.has(deviceId)) {
-                        console.log(`Device ${deviceId} reconnected with paused timer`);
+                        console.log(`Device ${deviceId} reconnected with paused timer - auto resume`);
                         
-                        // Jangan otomatis resume, biarkan user yang memutuskan
-                        // Timer tetap di pausedDevices sampai user manual resume
-                        
-                        // Kirim notifikasi ke mobile client bahwa device reconnect dengan timer paused
-                        notifyMobileClients({
-                            type: 'device_connect',
-                            deviceId: deviceId,
-                            timestamp: new Date().toISOString(),
-                            detail: {
-                                message: `Device ${deviceId} reconnected with paused timer`,
-                                canResume: true
-                            }
-                        });
+                        // Otomatis resume timer yang di-pause
+                        handleAutoResume(deviceId, ws);
                     }
                     
                     // Kirim konfirmasi ke device

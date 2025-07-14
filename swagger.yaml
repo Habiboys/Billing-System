@@ -29,7 +29,8 @@ info:
     - `device_disconnect`: Device terputus
     - `device_connect`: Device terhubung
     - `timer_paused_disconnect`: Timer di-pause karena disconnect
-    - `timer_resumed`: Timer dilanjutkan setelah reconnect
+    - `timer_resumed`: Timer dilanjutkan manual
+    - `timer_auto_resumed`: Timer otomatis dilanjutkan saat reconnect
 servers:
   - url: http://34.101.143.2:3000/api
     description: Deploy Server
@@ -175,7 +176,7 @@ components:
       properties:
         type:
           type: string
-          enum: [device_disconnect, device_connect, timer_paused_disconnect, timer_resumed, timer_started, timer_paused, timer_ended]
+          enum: [device_disconnect, device_connect, timer_paused_disconnect, timer_resumed, timer_auto_resumed, timer_started, timer_paused, timer_ended]
           description: Tipe notifikasi
         deviceId:
           type: string
@@ -997,6 +998,8 @@ paths:
                   data: {"type":"timer_paused_disconnect","deviceId":"abc123","elapsedTime":1800,"timestamp":"2024-05-30T12:00:00Z","canResume":true}
                   
                   data: {"type":"timer_resumed","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","detail":{"message":"Timer resumed successfully"}}
+                  
+                  data: {"type":"timer_auto_resumed","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","detail":{"message":"Timer auto resumed after reconnect"}}
                   
                   data: {"type":"device_connect","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","detail":{"message":"Device connected"}}
         "500":
