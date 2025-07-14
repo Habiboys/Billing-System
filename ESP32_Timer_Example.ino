@@ -148,39 +148,52 @@ void handleStartCommand(JsonDocument& doc) {
   String command = doc["command"];
   
   if (command == "start") {
-    if (timerState.isPaused) {
-      // Resume timer yang di-pause
-      unsigned long currentTime = millis();
-      unsigned long pauseDuration = currentTime - timerState.pauseTime;
-      timerState.totalPauseTime += pauseDuration;
-      timerState.isPaused = false;
-      timerState.isRunning = true;
-      
-      // Update remaining time
-      unsigned long elapsedTime = (currentTime - timerState.startTime - timerState.totalPauseTime) / 1000;
-      timerState.remainingTime = timerState.duration - elapsedTime;
-      
-      // Turn on relay
-      digitalWrite(RELAY_PIN, HIGH);
-      
-      Serial.println("Timer resumed");
-      Serial.printf("Pause duration: %lu ms\n", pauseDuration);
-      Serial.printf("Remaining time: %lu seconds\n", timerState.remainingTime);
-      sendStatusUpdate("timer_resumed");
-      
-    } else if (!timerState.isRunning) {
+    // Cek apakah ada field timer (timer baru) atau tidak (resume)
+    if (doc.containsKey("timer")) {
       // Start new timer
-      timerState.isRunning = true;
-      timerState.isPaused = false;
-      timerState.startTime = millis();
-      timerState.totalPauseTime = 0;
-      timerState.duration = doc["timer"];
-      timerState.remainingTime = timerState.duration;
-      
-      digitalWrite(RELAY_PIN, HIGH);
-      
-      Serial.printf("Timer started for %lu seconds\n", timerState.duration);
-      sendStatusUpdate("timer_started");
+      if (!timerState.isRunning) {
+        timerState.isRunning = true;
+        timerState.isPaused = false;
+        timerState.startTime = millis();
+        timerState.totalPauseTime = 0;
+        timerState.duration = doc["timer"];
+        timerState.remainingTime = timerState.duration;
+        
+        digitalWrite(RELAY_PIN, HIGH);
+        
+        Serial.printf("Timer started for %lu seconds\n", timerState.duration);
+        sendStatusUpdate("timer_started");
+      } else {
+        Serial.println("Timer already running, cannot start new timer");
+        sendErrorResponse("timer_already_running");
+      }
+    } else {
+      // Resume timer yang di-pause
+      if (timerState.isPaused) {
+        unsigned long currentTime = millis();
+        unsigned long pauseDuration = currentTime - timerState.pauseTime;
+        timerState.totalPauseTime += pauseDuration;
+        timerState.isPaused = false;
+        timerState.isRunning = true;
+        
+        // Update remaining time
+        unsigned long elapsedTime = (currentTime - timerState.startTime - timerState.totalPauseTime) / 1000;
+        timerState.remainingTime = timerState.duration - elapsedTime;
+        
+        // Turn on relay
+        digitalWrite(RELAY_PIN, HIGH);
+        
+        Serial.println("Timer resumed");
+        Serial.printf("Pause duration: %lu ms\n", pauseDuration);
+        Serial.printf("Remaining time: %lu seconds\n", timerState.remainingTime);
+        sendStatusUpdate("timer_resumed");
+      } else if (!timerState.isRunning) {
+        Serial.println("No timer to resume");
+        sendErrorResponse("no_timer_to_resume");
+      } else {
+        Serial.println("Timer already running");
+        sendErrorResponse("timer_already_running");
+      }
     }
   }
 }

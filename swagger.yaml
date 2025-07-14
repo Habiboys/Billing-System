@@ -8,7 +8,8 @@ info:
     ## WebSocket Commands
     
     ### Commands dari Server ke ESP32:
-    - `start`: Memulai atau melanjutkan timer
+    - `start` + `timer`: Memulai timer baru dengan durasi tertentu
+    - `start` (tanpa timer): Melanjutkan timer yang di-pause
     - `stop`: Menghentikan timer (pause)
     - `end`: Mengakhiri timer secara permanen
     - `add_time`: Menambah waktu ke timer yang sedang berjalan

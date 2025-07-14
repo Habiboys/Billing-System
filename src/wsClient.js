@@ -272,11 +272,12 @@ const sendToESP32 = (data) => {
     }
 
     try {
-        // Pada bagian pengiriman payload ke device (sendToESP32, sendCommand)
+        // Standardize payload format untuk timer baru
         const payload = {
             type: 'command',
-            deviceId: deviceId, // gunakan deviceId saja
-            timer,
+            deviceId: deviceId,
+            command: 'start',  // Tambahkan command start untuk konsistensi
+            timer,  // Durasi timer dalam detik
             timestamp: new Date().toISOString()
         };
 
@@ -285,18 +286,18 @@ const sendToESP32 = (data) => {
 
         // Kirim data
         client.send(JSON.stringify(payload));
-        console.log(`Data sent to device ${deviceId}:`, payload);
+        console.log(`Timer started for device ${deviceId}:`, payload);
         
         return {
             success: true,
-            message: `Data sent to device ${deviceId}`,
+            message: `Timer started for device ${deviceId}`,
             data: payload
         };
     } catch (error) {
-        console.error(`Error sending data to device ${deviceId}:`, error);
+        console.error(`Error starting timer for device ${deviceId}:`, error);
         return {
             success: false,
-            message: `Error sending data: ${error.message}`
+            message: `Error starting timer: ${error.message}`
         };
     }
 };
