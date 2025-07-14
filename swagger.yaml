@@ -581,7 +581,16 @@ paths:
     post:
       summary: Create a new transaction
       tags: [Transaction]
-      description: Membuat transaksi baru dan mengirim timer ke device melalui WebSocket
+      description: |
+        Membuat transaksi baru dan mengirim timer ke device melalui WebSocket.
+        
+        **Validasi:**
+        - Device harus terkoneksi ke WebSocket
+        - Device tidak boleh memiliki timer yang aktif
+        - Device tidak boleh memiliki timer yang di-pause
+        - Device tidak boleh memiliki timer aktif di database
+        
+        **Jika device memiliki timer yang di-pause, gunakan command start untuk melanjutkan timer yang ada.**
       security:
         - BearerAuth: []
       requestBody:
@@ -628,7 +637,19 @@ paths:
                       deviceCommand:
                         type: object
         "400":
-          description: Device tidak terkoneksi ke server WebSocket
+          description: Data tidak valid, device tidak terkoneksi, atau device memiliki timer aktif/pause
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    examples:
+                      device_not_connected: "Device tidak terkoneksi ke server WebSocket"
+                      timer_active: "Device masih memiliki timer yang aktif. Harap tunggu timer selesai atau gunakan command stop terlebih dahulu."
+                      timer_paused: "Device memiliki timer yang di-pause. Gunakan command start untuk melanjutkan timer yang ada, atau command end untuk mengakhiri timer."
+                      timer_in_database: "Device masih memiliki timer yang aktif di database. Harap tunggu timer selesai atau gunakan command end terlebih dahulu."
         "404":
           description: Device tidak ditemukan
 

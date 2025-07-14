@@ -264,6 +264,14 @@ const sendToESP32 = (data) => {
         };
     }
 
+    // Cek apakah device memiliki timer yang di-pause
+    if (isTimerPaused(deviceId)) {
+        return {
+            success: false,
+            message: `Device ${deviceId} memiliki timer yang di-pause. Gunakan command start untuk melanjutkan timer yang ada.`
+        };
+    }
+
     // Ambil koneksi WebSocket untuk device
     const client = connectedClients.get(deviceId);
     

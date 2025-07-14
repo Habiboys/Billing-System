@@ -107,6 +107,28 @@ const createTransaction = async (req, res) => {
             });
         }
 
+        // Cek apakah device sudah memiliki timer yang aktif atau di-pause
+        const { isTimerActive, isTimerPaused } = require('../wsClient');
+        
+        if (isTimerActive(deviceId)) {
+            return res.status(400).json({
+                message: 'Device masih memiliki timer yang aktif. Harap tunggu timer selesai atau gunakan command stop terlebih dahulu.'
+            });
+        }
+        
+        if (isTimerPaused(deviceId)) {
+            return res.status(400).json({
+                message: 'Device memiliki timer yang di-pause. Gunakan command start untuk melanjutkan timer yang ada, atau command end untuk mengakhiri timer.'
+            });
+        }
+
+        // Cek apakah device memiliki timer yang aktif di database
+        if (device.timerStatus === 'start') {
+            return res.status(400).json({
+                message: 'Device masih memiliki timer yang aktif di database. Harap tunggu timer selesai atau gunakan command end terlebih dahulu.'
+            });
+        }
+
         const transactionId = uuidv4();
      
         await device.update({
