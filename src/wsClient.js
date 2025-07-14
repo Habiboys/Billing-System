@@ -10,6 +10,54 @@ let mobileClients = new Set(); // Menyimpan koneksi mobile untuk notifikasi
 let deviceDisconnectCallbacks = new Map(); // Callback untuk handle disconnect
 // Hapus: let sseClients = new Map(); // Menyimpan SSE clients untuk mobile notifications
 
+// Fungsi untuk handle timer completion
+const handleTimerCompletion = async (deviceId) => {
+    try {
+        // Update device status
+        const { Device, Transaction } = require('./models');
+        const device = await Device.findByPk(deviceId);
+        if (device) {
+            await device.update({
+                timerStatus: 'end',
+                timerElapsed: 0,
+                timerStart: null,
+                lastPausedAt: null,
+                timerDuration: 0
+            });
+        }
+        
+        // Update transaksi aktif dengan end timestamp
+        const activeTransaction = await Transaction.findOne({
+            where: {
+                deviceId: deviceId,
+                end: null
+            },
+            order: [['createdAt', 'DESC']]
+        });
+        
+        if (activeTransaction) {
+            const now = new Date();
+            await activeTransaction.update({
+                end: now
+            });
+            console.log(`Transaction ${activeTransaction.id} completed for device ${deviceId}`);
+        }
+        
+        // Notify mobile clients
+        notifyMobileClients({
+            type: 'timer_ended',
+            deviceId: deviceId,
+            timestamp: new Date().toISOString(),
+            transactionId: activeTransaction?.id,
+            detail: {
+                message: `Timer completed for device ${deviceId}`
+            }
+        });
+    } catch (error) {
+        console.error(`Error handling timer completion for device ${deviceId}:`, error);
+    }
+};
+
 function heartbeat() {
     this.isAlive = true;
 }
@@ -117,6 +165,10 @@ const initWebSocketServer = (server) => {
                 if (data.status === 'relay_off') {
                     const deviceId = data.deviceId;
                     console.log(`Timer completed for device ${deviceId}. Relay turned off.`);
+                    
+                    // Handle timer completion asynchronously
+                    handleTimerCompletion(deviceId);
+                    
                     // Hapus dari active timers karena timer sudah selesai
                     activeTimers.delete(deviceId);
                     pausedDevices.delete(deviceId);

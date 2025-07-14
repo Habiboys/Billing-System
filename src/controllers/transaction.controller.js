@@ -137,13 +137,13 @@ const createTransaction = async (req, res) => {
             timerStatus: 'start'
         });
         //
-        // Buat transaksi
+        // Buat transaksi - end harus null untuk transaksi yang sedang aktif
         const transaction = await Transaction.create({
             id: transactionId,
             userId: req.user.id,
             deviceId,
             start,
-            end,
+            end: null, // Transaksi aktif tidak boleh memiliki end timestamp
             duration,
             cost
         });
