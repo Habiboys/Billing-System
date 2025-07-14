@@ -68,85 +68,7 @@ const registerDisconnectHandlers = () => {
 // Initialize disconnect handlers
 registerDisconnectHandlers();
 
-// Fungsi untuk resume timer yang di-pause karena disconnect
-const resumePausedTimer = async (deviceId) => {
-    try {
-        const device = await Device.findByPk(deviceId);
-        if (!device || device.timerStatus !== 'start' || !device.lastPausedAt) {
-            return {
-                success: false,
-                message: 'Device tidak memiliki timer yang bisa di-resume'
-            };
-        }
 
-        const now = new Date();
-        const pauseDuration = now - device.lastPausedAt;
-        
-        // Update timer start dengan menambahkan durasi pause
-        await device.update({
-            timerStart: new Date(device.timerStart.getTime() + pauseDuration),
-            lastPausedAt: null
-        });
-
-        // Cari transaksi aktif dan update status
-        const activeTransaction = await Transaction.findOne({
-            where: {
-                deviceId: deviceId,
-                end: null
-            },
-            order: [['createdAt', 'DESC']]
-        });
-
-        if (activeTransaction && activeTransaction.status) {
-            await activeTransaction.update({
-                status: 'active'
-            });
-        }
-
-        // Kirim command resume ke device
-        const { sendCommand } = require('../wsClient');
-        const result = await sendCommand({
-            deviceId: deviceId,
-            command: 'start'
-        });
-
-        if (!result.success) {
-            return {
-                success: false,
-                message: `Gagal mengirim command resume ke device: ${result.message}`
-            };
-        }
-
-        // Notify mobile clients
-        const { notifyMobileClients } = require('../wsClient');
-        notifyMobileClients({
-            type: 'timer_resumed',
-            deviceId: deviceId,
-            timestamp: now.toISOString(),
-            detail: {
-                message: `Timer for device ${deviceId} resumed successfully`,
-                transactionId: activeTransaction?.id
-            }
-        });
-
-        return {
-            success: true,
-            message: 'Timer berhasil di-resume',
-            data: {
-                deviceId: deviceId,
-                transactionId: activeTransaction?.id,
-                resumedAt: now
-            }
-        };
-
-    } catch (error) {
-        console.error(`Error resuming timer for device ${deviceId}:`, error);
-        return {
-            success: false,
-            message: `Error resuming timer: ${error.message}`
-        };
-    }
-};
 
 
 const createTransaction = async (req, res) => {
@@ -666,6 +588,5 @@ module.exports = {
     getTransactionsByUserId,
     updateTransaction,
     deleteTransaction,
-    addTime,
-    resumePausedTimer
+    addTime
 };

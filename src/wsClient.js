@@ -307,8 +307,8 @@ const sendToESP32 = (data) => {
     }
 };
 
-// Fungsi untuk mengirim perintah start/stop ke ESP32
-const sendCommand = (data) => {
+// Fungsi untuk mengirim perintah start/stop ke ESP32 (termasuk resume timer)
+const sendCommand = async (data) => {
     if (!wss) {
         return {
             success: false,
@@ -350,9 +350,55 @@ const sendCommand = (data) => {
         };
     }
     
-    // Jika command start dan device memiliki timer yang di-pause, izinkan resume
+    // Jika command start dan device memiliki timer yang di-pause, handle resume timer
     if (command === 'start' && isTimerPaused(deviceId)) {
-        // Ini adalah resume timer, tidak perlu validasi tambahan
+        try {
+            // Import model untuk handle resume timer
+            const { Device, Transaction } = require('./models');
+            
+            const device = await Device.findByPk(deviceId);
+            if (device && device.timerStatus === 'start' && device.lastPausedAt) {
+                const now = new Date();
+                const pauseDuration = now - device.lastPausedAt;
+                
+                // Update timer start dengan menambahkan durasi pause
+                await device.update({
+                    timerStart: new Date(device.timerStart.getTime() + pauseDuration),
+                    lastPausedAt: null
+                });
+
+                // Cari transaksi aktif dan update status
+                const activeTransaction = await Transaction.findOne({
+                    where: {
+                        deviceId: deviceId,
+                        end: null
+                    },
+                    order: [['createdAt', 'DESC']]
+                });
+
+                if (activeTransaction && activeTransaction.status) {
+                    await activeTransaction.update({
+                        status: 'active'
+                    });
+                }
+
+                // Notify mobile clients
+                notifyMobileClients({
+                    type: 'timer_resumed',
+                    deviceId: deviceId,
+                    timestamp: now.toISOString(),
+                    detail: {
+                        message: `Timer for device ${deviceId} resumed successfully`,
+                        transactionId: activeTransaction?.id
+                    }
+                });
+
+                console.log(`Timer resumed for device ${deviceId} with pause duration: ${pauseDuration}ms`);
+            }
+        } catch (error) {
+            console.error(`Error handling resume timer for device ${deviceId}:`, error);
+            // Lanjutkan dengan command biasa meskipun ada error di resume
+        }
     }
 
     // Ambil koneksi WebSocket untuk device
@@ -560,5 +606,10 @@ module.exports = {
     isTimerPaused,
     canResumeTimer,
     notifyMobileClients,
-    onDeviceDisconnect
+    onDeviceDisconnect,
+    // Export internal variables untuk debugging
+    connectedClients,
+    activeTimers,
+    pausedDevices,
+    lastActivityTime
 };

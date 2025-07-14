@@ -9,10 +9,13 @@ info:
     
     ### Commands dari Server ke ESP32:
     - `start` + `timer`: Memulai timer baru dengan durasi tertentu
-    - `start` (tanpa timer): Melanjutkan timer yang di-pause
+    - `start` (tanpa timer): Melanjutkan timer yang di-pause (otomatis handle resume)
     - `stop`: Menghentikan timer (pause)
     - `end`: Mengakhiri timer secara permanen
     - `add_time`: Menambah waktu ke timer yang sedang berjalan
+    
+    ### Endpoint Command:
+    - `POST /connection/device/{deviceId}/command`: Mengirim command start/stop/end (termasuk resume timer otomatis)
     
     ### Status dari ESP32 ke Server:
     - `timer_started`: Timer baru dimulai
@@ -847,71 +850,7 @@ paths:
         "404":
           description: Transaksi tidak ditemukan atau sudah selesai
 
-  /transaction/device/{deviceId}/resume:
-    post:
-      summary: Resume paused timer
-      tags: [Transaction]
-      description: |
-        Melanjutkan timer yang di-pause karena disconnect atau manual pause.
-        Endpoint ini memungkinkan user untuk manual resume timer yang sedang di-pause.
-        Timer akan dilanjutkan dengan waktu yang tepat sesuai durasi pause.
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: deviceId
-          schema:
-            type: string
-          required: true
-          description: Device ID yang timer-nya akan di-resume
-      responses:
-        "200":
-          description: Timer berhasil di-resume
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Timer berhasil di-resume"
-                  data:
-                    type: object
-                    properties:
-                      deviceId:
-                        type: string
-                        description: ID device yang di-resume
-                      transactionId:
-                        type: string
-                        format: uuid
-                        description: ID transaksi yang di-resume
-                      resumedAt:
-                        type: string
-                        format: date-time
-                        description: Waktu resume timer
-        "400":
-          description: Device tidak memiliki timer yang bisa di-resume
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Device tidak memiliki timer yang bisa di-resume"
-        "404":
-          description: Device tidak ditemukan
-        "500":
-          description: Terjadi kesalahan saat resume timer
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  error:
-                    type: string
+
 
   # CONNECTION ROUTES
   /connection/status:
@@ -1022,6 +961,203 @@ paths:
                   data: {"type":"device_connect","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","detail":{"message":"Device connected"}}
         "500":
           description: Gagal membuka koneksi SSE
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+
+  /connection/device/{deviceId}/command:
+    post:
+      summary: Send command to device (start/stop/end - termasuk resume timer)
+      tags: [Connection]
+      description: |
+        Mengirim command ke device ESP32. Command "start" akan otomatis handle resume timer jika device memiliki timer yang di-pause.
+        - start: Memulai timer baru atau melanjutkan timer yang di-pause
+        - stop: Menghentikan timer (pause)
+        - end: Mengakhiri timer secara permanen
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                command:
+                  type: string
+                  enum: [start, stop, end]
+                  description: Command yang akan dikirim ke device
+              required:
+                - command
+              example:
+                command: "start"
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: Device ID yang akan dikirim command
+      responses:
+        "200":
+          description: Command berhasil dikirim
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Command start sent to device abc123"
+                  data:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        example: "command"
+                      deviceId:
+                        type: string
+                        example: "abc123"
+                      command:
+                        type: string
+                        example: "start"
+                      timestamp:
+                        type: string
+                        format: date-time
+        "400":
+          description: Command tidak valid atau device tidak siap
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Device tidak memiliki timer yang bisa di-resume"
+        "500":
+          description: Terjadi kesalahan saat mengirim command
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+
+  /connection/device/{deviceId}/timer-status:
+    get:
+      summary: Get detailed timer status for device
+      tags: [Connection]
+      description: |
+        Endpoint untuk debugging status timer device secara detail.
+        Menampilkan informasi lengkap tentang status timer, koneksi, dan kemampuan resume.
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: Device ID yang akan dicek status timer-nya
+      responses:
+        "200":
+          description: Detail status timer device
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deviceId:
+                    type: string
+                    description: ID device yang dicek
+                  isConnected:
+                    type: boolean
+                    description: Apakah device terkoneksi ke WebSocket
+                  isTimerActive:
+                    type: boolean
+                    description: Apakah device memiliki timer yang sedang aktif
+                  isTimerPaused:
+                    type: boolean
+                    description: Apakah device memiliki timer yang di-pause
+                  canResume:
+                    type: boolean
+                    description: Apakah timer bisa di-resume
+                  deviceStatus:
+                    type: string
+                    enum: [on, off, pause, pause_disconnected]
+                    description: Status device (on=timer aktif, off=tidak ada timer, pause=di-pause manual, pause_disconnected=di-pause karena disconnect)
+                  databaseInfo:
+                    type: object
+                    properties:
+                      timerStatus:
+                        type: string
+                        enum: [start, stop, end]
+                        description: Status timer di database
+                      timerStart:
+                        type: string
+                        format: date-time
+                        description: Waktu mulai timer
+                      timerDuration:
+                        type: integer
+                        description: Durasi timer dalam milliseconds
+                      timerElapsed:
+                        type: integer
+                        description: Waktu yang sudah berlalu dalam milliseconds
+                      lastPausedAt:
+                        type: string
+                        format: date-time
+                        description: Waktu terakhir timer di-pause
+                  websocketInfo:
+                    type: object
+                    properties:
+                      inActiveTimers:
+                        type: boolean
+                        description: Apakah device ada di activeTimers set
+                      inPausedDevices:
+                        type: boolean
+                        description: Apakah device ada di pausedDevices set
+                      lastActivityTime:
+                        type: string
+                        format: date-time
+                        description: Waktu aktivitas terakhir device
+                  message:
+                    type: string
+                    description: Pesan penjelasan status
+              example:
+                deviceId: "abc123"
+                isConnected: true
+                isTimerActive: false
+                isTimerPaused: true
+                canResume: true
+                deviceStatus: "pause"
+                databaseInfo:
+                  timerStatus: "start"
+                  timerStart: "2024-05-30T10:00:00Z"
+                  timerDuration: 3600000
+                  timerElapsed: 1800000
+                  lastPausedAt: "2024-05-30T10:30:00Z"
+                websocketInfo:
+                  inActiveTimers: false
+                  inPausedDevices: true
+                  lastActivityTime: "2024-05-30T10:30:00Z"
+                message: "Device memiliki timer yang di-pause dan bisa di-resume"
+        "404":
+          description: Device tidak ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Device tidak ditemukan"
+        "500":
+          description: Terjadi kesalahan saat mengecek status timer
           content:
             application/json:
               schema:
