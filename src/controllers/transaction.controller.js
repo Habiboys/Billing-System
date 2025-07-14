@@ -14,16 +14,17 @@ const registerDisconnectHandlers = () => {
             const device = await Device.findByPk(deviceId);
             if (!device) return;
 
-            // Jika device sedang memiliki timer aktif, update status
+            // Jika device sedang memiliki timer aktif, jangan ubah status transaksi
+            // Biarkan transaksi tetap aktif agar bisa dilanjutkan
             if (device.timerStatus === 'start') {
                 const now = new Date();
                 const elapsedTime = Math.floor((now - device.timerStart) / 1000);
                 
-                // Update device status
+                // Jangan update timerStatus, biarkan tetap 'start'
+                // Hanya update elapsed time dan lastPausedAt
                 await device.update({
-                    timerStatus: 'disconnected',
                     timerElapsed: elapsedTime,
-                    lastDisconnectAt: now
+                    lastPausedAt: now
                 });
 
                 // Cari transaksi aktif untuk device ini
@@ -36,24 +37,26 @@ const registerDisconnectHandlers = () => {
                 });
 
                 if (activeTransaction) {
-                    // Update transaksi dengan waktu disconnect
-                    await activeTransaction.update({
-                        end: now,
-                        duration: elapsedTime,
-                        status: 'disconnected'
-                    });
+                    // Jangan update transaksi, biarkan tetap aktif
+                    // Hanya update status menjadi 'paused' jika ada field status
+                    if (activeTransaction.status) {
+                        await activeTransaction.update({
+                            status: 'paused'
+                        });
+                    }
 
-                    console.log(`Transaction ${activeTransaction.id} marked as disconnected for device ${deviceId}`);
+                    console.log(`Transaction ${activeTransaction.id} paused for device ${deviceId} due to disconnect`);
                 }
 
                 // Notify mobile clients
                 notifyMobileClients({
-                    type: 'timer_disconnected',
+                    type: 'timer_paused_disconnect',
                     deviceId: deviceId,
                     timestamp: now.toISOString(),
                     reason: reason,
                     elapsedTime: elapsedTime,
-                    transactionId: activeTransaction?.id
+                    transactionId: activeTransaction?.id,
+                    canResume: true
                 });
             }
         } catch (error) {
@@ -64,6 +67,86 @@ const registerDisconnectHandlers = () => {
 
 // Initialize disconnect handlers
 registerDisconnectHandlers();
+
+// Fungsi untuk resume timer yang di-pause karena disconnect
+const resumePausedTimer = async (deviceId) => {
+    try {
+        const device = await Device.findByPk(deviceId);
+        if (!device || device.timerStatus !== 'start' || !device.lastPausedAt) {
+            return {
+                success: false,
+                message: 'Device tidak memiliki timer yang bisa di-resume'
+            };
+        }
+
+        const now = new Date();
+        const pauseDuration = now - device.lastPausedAt;
+        
+        // Update timer start dengan menambahkan durasi pause
+        await device.update({
+            timerStart: new Date(device.timerStart.getTime() + pauseDuration),
+            lastPausedAt: null
+        });
+
+        // Cari transaksi aktif dan update status
+        const activeTransaction = await Transaction.findOne({
+            where: {
+                deviceId: deviceId,
+                end: null
+            },
+            order: [['createdAt', 'DESC']]
+        });
+
+        if (activeTransaction && activeTransaction.status) {
+            await activeTransaction.update({
+                status: 'active'
+            });
+        }
+
+        // Kirim command resume ke device
+        const { sendCommand } = require('../wsClient');
+        const result = await sendCommand({
+            deviceId: deviceId,
+            command: 'start'
+        });
+
+        if (!result.success) {
+            return {
+                success: false,
+                message: `Gagal mengirim command resume ke device: ${result.message}`
+            };
+        }
+
+        // Notify mobile clients
+        const { notifyMobileClients } = require('../wsClient');
+        notifyMobileClients({
+            type: 'timer_resumed',
+            deviceId: deviceId,
+            timestamp: now.toISOString(),
+            detail: {
+                message: `Timer for device ${deviceId} resumed successfully`,
+                transactionId: activeTransaction?.id
+            }
+        });
+
+        return {
+            success: true,
+            message: 'Timer berhasil di-resume',
+            data: {
+                deviceId: deviceId,
+                transactionId: activeTransaction?.id,
+                resumedAt: now
+            }
+        };
+
+    } catch (error) {
+        console.error(`Error resuming timer for device ${deviceId}:`, error);
+        return {
+            success: false,
+            message: `Error resuming timer: ${error.message}`
+        };
+    }
+};
 
 
 const createTransaction = async (req, res) => {
@@ -576,12 +659,13 @@ const addTime = async (req, res) => {
     }
 };
 
-module.exports = { 
+module.exports = {
     createTransaction,
     getAllTransactions,
     getTransactionById,
     getTransactionsByUserId,
     updateTransaction,
     deleteTransaction,
-    addTime
+    addTime,
+    resumePausedTimer
 };

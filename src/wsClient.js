@@ -74,6 +74,23 @@ const initWebSocketServer = (server) => {
                     connectedClients.set(deviceId, ws);
                     console.log(`Device ${deviceId} registered`);
                     
+                    // Cek apakah device memiliki timer yang di-pause dan bisa dilanjutkan
+                    if (pausedDevices.has(deviceId)) {
+                        pausedDevices.delete(deviceId);
+                        activeTimers.add(deviceId);
+                        console.log(`Timer for device ${deviceId} resumed after reconnect`);
+                        
+                        // Kirim notifikasi ke mobile client bahwa timer dilanjutkan
+                        notifyMobileClients({
+                            type: 'timer_resumed',
+                            deviceId: deviceId,
+                            timestamp: new Date().toISOString(),
+                            detail: {
+                                message: `Timer for device ${deviceId} resumed after reconnect`
+                            }
+                        });
+                    }
+                    
                     // Kirim konfirmasi ke device
                     ws.send(JSON.stringify({
                         type: 'registration',
@@ -130,8 +147,16 @@ const initWebSocketServer = (server) => {
             for (let [deviceId, client] of connectedClients.entries()) {
                 if (client === ws) {
                     connectedClients.delete(deviceId);
-                    activeTimers.delete(deviceId);
                     console.log(`Device ${deviceId} unregistered`);
+                    
+                    // Jika device sedang memiliki timer aktif, jangan hapus dari activeTimers
+                    // tapi tambahkan ke pausedDevices untuk menandakan timer di-pause
+                    if (activeTimers.has(deviceId)) {
+                        activeTimers.delete(deviceId);
+                        pausedDevices.add(deviceId);
+                        console.log(`Timer for device ${deviceId} paused due to disconnect`);
+                    }
+                    
                     // Kirim notifikasi ke mobile client bahwa device disconnect
                     notifyMobileClients({
                         type: 'device_disconnect',
@@ -142,17 +167,18 @@ const initWebSocketServer = (server) => {
                             reason: 'connection_lost'
                         }
                     });
+                    
+                    // Update device status di database - jangan ubah timerStatus menjadi 'stop'
+                    // tapi simpan informasi bahwa device disconnect
                     const device = await Device.findByPk(deviceId);
                     if (device && device.timerStatus === 'start') {
-                      const now = new Date();
-                      const elapsed = Math.floor((now - device.timerStart) / 1000);
-                      const remaining = device.timerDuration - elapsed;
-                      await device.update({
-                        timerStatus: 'stop',
-                        timerElapsed: elapsed,
-                        lastPausedAt: now,
-                        // bisa tambahkan field lain jika perlu
-                      });
+                        const now = new Date();
+                        const elapsed = Math.floor((now - device.timerStart) / 1000);
+                        await device.update({
+                            timerElapsed: elapsed,
+                            lastPausedAt: now,
+                            // Jangan ubah timerStatus, biarkan tetap 'start' agar bisa dilanjutkan
+                        });
                     }
                     
                     // Execute disconnect callback if exists
@@ -177,6 +203,16 @@ const initWebSocketServer = (server) => {
 // Fungsi untuk mengecek status timer device
 const isTimerActive = (deviceId) => {
     return activeTimers.has(deviceId);
+};
+
+// Fungsi untuk mengecek apakah device memiliki timer yang di-pause
+const isTimerPaused = (deviceId) => {
+    return pausedDevices.has(deviceId);
+};
+
+// Fungsi untuk mengecek apakah device bisa di-resume
+const canResumeTimer = (deviceId) => {
+    return pausedDevices.has(deviceId);
 };
 
 // Fungsi untuk mengirim data ke ESP32 tertentu
@@ -306,6 +342,11 @@ const sendCommand = (data) => {
             success: false,
             message: `Device ${deviceId} masih memiliki timer yang aktif`
         };
+    }
+    
+    // Jika command start dan device memiliki timer yang di-pause, izinkan resume
+    if (command === 'start' && isTimerPaused(deviceId)) {
+        // Ini adalah resume timer, tidak perlu validasi tambahan
     }
 
     // Ambil koneksi WebSocket untuk device
@@ -480,6 +521,16 @@ const getConnectionStatus = () => {
         };
     });
 
+    // Tambahkan device yang di-pause tapi tidak terkoneksi
+    pausedDevices.forEach(deviceId => {
+        if (!connectedClients.has(deviceId)) {
+            devices.push({
+                deviceId: deviceId,
+                status: 'pause_disconnected'
+            });
+        }
+    });
+
     console.log('Current connected devices:', devices);
 
     return {
@@ -496,6 +547,8 @@ module.exports = {
     sendAddTime,
     getConnectionStatus,
     isTimerActive,
+    isTimerPaused,
+    canResumeTimer,
     notifyMobileClients,
     onDeviceDisconnect
 };

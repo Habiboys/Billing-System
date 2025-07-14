@@ -2,7 +2,30 @@ openapi: 3.0.0
 info:
   title: Billing System API
   version: 1.0.0
-  description: API documentation for the Billing System application
+  description: |
+    API documentation for the Billing System application
+    
+    ## WebSocket Commands
+    
+    ### Commands dari Server ke ESP32:
+    - `start`: Memulai atau melanjutkan timer
+    - `stop`: Menghentikan timer (pause)
+    - `end`: Mengakhiri timer secara permanen
+    - `add_time`: Menambah waktu ke timer yang sedang berjalan
+    
+    ### Status dari ESP32 ke Server:
+    - `timer_started`: Timer baru dimulai
+    - `timer_paused`: Timer di-pause
+    - `timer_resumed`: Timer dilanjutkan
+    - `timer_ended`: Timer diakhiri
+    - `relay_off`: Timer selesai, relay dimatikan
+    - `time_added`: Waktu berhasil ditambahkan
+    
+    ### Notifikasi WebSocket:
+    - `device_disconnect`: Device terputus
+    - `device_connect`: Device terhubung
+    - `timer_paused_disconnect`: Timer di-pause karena disconnect
+    - `timer_resumed`: Timer dilanjutkan setelah reconnect
 servers:
   - url: http://34.101.143.2:3000/api
     description: Deploy Server
@@ -87,9 +110,18 @@ components:
         timerStatus:
           type: string
           enum: [start, stop, end]
+          description: Status timer device
         lastPausedAt:
           type: string
           format: date-time
+          description: Waktu terakhir timer di-pause
+        isConnected:
+          type: boolean
+          description: Status koneksi device ke WebSocket server
+        status:
+          type: string
+          enum: [on, off, pause, pause_disconnected]
+          description: Status real-time device (on=timer aktif, off=tidak ada timer, pause=di-pause manual, pause_disconnected=di-pause karena disconnect)
         createdAt:
           type: string
           format: date-time
@@ -133,6 +165,40 @@ components:
         - deviceId
         - duration
         - cost
+    
+    WebSocketNotification:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [device_disconnect, device_connect, timer_paused_disconnect, timer_resumed, timer_started, timer_paused, timer_ended]
+          description: Tipe notifikasi
+        deviceId:
+          type: string
+          description: ID device yang terkait dengan notifikasi
+        timestamp:
+          type: string
+          format: date-time
+          description: Waktu notifikasi
+        reason:
+          type: string
+          description: Alasan disconnect (untuk device_disconnect)
+        elapsedTime:
+          type: integer
+          description: Waktu yang sudah berlalu dalam detik
+        canResume:
+          type: boolean
+          description: Apakah timer bisa di-resume
+        detail:
+          type: object
+          properties:
+            message:
+              type: string
+              description: Pesan detail notifikasi
+        transactionId:
+          type: string
+          format: uuid
+          description: ID transaksi yang terkait
 
 paths:
   # AUTH ROUTES
@@ -384,7 +450,7 @@ paths:
                               type: boolean
                             status:
                               type: string
-                              enum: [on, off, pause]
+                              enum: [on, off, pause, pause_disconnected]
 
   /device/{id}:
     get:
@@ -780,6 +846,72 @@ paths:
         "404":
           description: Transaksi tidak ditemukan atau sudah selesai
 
+  /transaction/device/{deviceId}/resume:
+    post:
+      summary: Resume paused timer
+      tags: [Transaction]
+      description: |
+        Melanjutkan timer yang di-pause karena disconnect atau manual pause.
+        Endpoint ini memungkinkan user untuk manual resume timer yang sedang di-pause.
+        Timer akan dilanjutkan dengan waktu yang tepat sesuai durasi pause.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: Device ID yang timer-nya akan di-resume
+      responses:
+        "200":
+          description: Timer berhasil di-resume
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Timer berhasil di-resume"
+                  data:
+                    type: object
+                    properties:
+                      deviceId:
+                        type: string
+                        description: ID device yang di-resume
+                      transactionId:
+                        type: string
+                        format: uuid
+                        description: ID transaksi yang di-resume
+                      resumedAt:
+                        type: string
+                        format: date-time
+                        description: Waktu resume timer
+        "400":
+          description: Device tidak memiliki timer yang bisa di-resume
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Device tidak memiliki timer yang bisa di-resume"
+        "404":
+          description: Device tidak ditemukan
+        "500":
+          description: Terjadi kesalahan saat resume timer
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  error:
+                    type: string
+
   # CONNECTION ROUTES
   /connection/status:
     get:
@@ -807,7 +939,7 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: [on, off, pause]
+                          enum: [on, off, pause, pause_disconnected]
 
   /connection/unregistered:
     get:
@@ -882,7 +1014,11 @@ paths:
                 example: |
                   data: {"type":"device_disconnect","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","reason":"connection_lost"}
                   
-                  data: {"type":"timer_disconnected","deviceId":"abc123","elapsedTime":1800,"timestamp":"2024-05-30T12:00:00Z"}
+                  data: {"type":"timer_paused_disconnect","deviceId":"abc123","elapsedTime":1800,"timestamp":"2024-05-30T12:00:00Z","canResume":true}
+                  
+                  data: {"type":"timer_resumed","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","detail":{"message":"Timer resumed successfully"}}
+                  
+                  data: {"type":"device_connect","deviceId":"abc123","timestamp":"2024-05-30T12:00:00Z","detail":{"message":"Device connected"}}
         "500":
           description: Gagal membuka koneksi SSE
           content:

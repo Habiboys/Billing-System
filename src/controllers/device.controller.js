@@ -99,7 +99,7 @@ const getAllDevices = async (req, res) => {
             
             return {
                 ...deviceData,
-                isConnected: !!connectionInfo,
+                isConnected: !!connectionInfo && connectionInfo.status !== 'pause_disconnected',
                 status: connectionInfo ? connectionInfo.status : 'off'
             };
         });
@@ -142,7 +142,7 @@ const getDeviceById = async (req, res) => {
         const deviceData = device.toJSON();
         const response = {
             ...deviceData,
-            isConnected: !!connectionInfo,
+            isConnected: !!connectionInfo && connectionInfo.status !== 'pause_disconnected',
             status: connectionInfo ? connectionInfo.status : 'off'
         };
 
@@ -226,8 +226,16 @@ const sendDeviceCommand = async (req, res) => {
 
         // Handle timer status berdasarkan command
         if (command === 'start') {
-            if (device.timerStatus === 'stop') {
-                // Jika timer di-pause, hitung elapsed time
+            if (device.timerStatus === 'start' && device.lastPausedAt) {
+                // Jika timer sedang berjalan tapi di-pause (disconnect), resume timer
+                const pauseDuration = now - device.lastPausedAt;
+                // Update timer start dengan menambahkan durasi pause
+                await device.update({
+                    timerStart: new Date(device.timerStart.getTime() + pauseDuration),
+                    lastPausedAt: null
+                });
+            } else if (device.timerStatus === 'stop') {
+                // Jika timer di-pause manual, hitung elapsed time
                 if (device.lastPausedAt) {
                     const pauseDuration = now - device.lastPausedAt;
                     // Update timer start dengan menambahkan durasi pause
