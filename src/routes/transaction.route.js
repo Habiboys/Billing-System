@@ -32,6 +32,55 @@ router.delete("/:id", tokenValidation,  deleteTransaction);
 // Add time to transaction (memerlukan auth)
 router.post("/:transactionId/add-time", tokenValidation, addTime);
 
+// Debug endpoint untuk melihat semua transaksi (temporary)
+router.get("/debug/all", tokenValidation, async (req, res) => {
+    try {
+        const { Transaction, Device, Category } = require("../models");
+        
+        const transactions = await Transaction.findAll({
+            include: [{
+                model: Device,
+                include: [{
+                    model: Category
+                }]
+            }],
+            order: [['createdAt', 'DESC']]
+        });
+        
+        const simplifiedTransactions = transactions.map(t => ({
+            id: t.id,
+            deviceId: t.deviceId,
+            start: t.start,
+            end: t.end,
+            duration: t.duration,
+            cost: t.cost,
+            createdAt: t.createdAt,
+            device: {
+                id: t.Device?.id,
+                name: t.Device?.name,
+                timerStatus: t.Device?.timerStatus,
+                timerStart: t.Device?.timerStart,
+                timerDuration: t.Device?.timerDuration,
+                timerElapsed: t.Device?.timerElapsed,
+                lastPausedAt: t.Device?.lastPausedAt
+            }
+        }));
+        
+        res.json({
+            message: 'All transactions for debugging',
+            count: transactions.length,
+            data: simplifiedTransactions
+        });
+        
+    } catch (error) {
+        console.error('Debug error:', error);
+        res.status(500).json({
+            message: 'Error getting transactions',
+            error: error.message
+        });
+    }
+});
+
 
 
 module.exports = router;

@@ -467,6 +467,8 @@ const addTime = async (req, res) => {
     const { transactionId } = req.params;
     const { additionalTime } = req.body;
 
+    console.log('Add time request:', { transactionId, additionalTime });
+
     try {
         // Validasi input
         if (!additionalTime || typeof additionalTime !== 'number' || additionalTime <= 0) {
@@ -475,11 +477,10 @@ const addTime = async (req, res) => {
             });
         }
 
-        // Cari transaksi yang sedang aktif
+        // Cari transaksi berdasarkan ID
         const transaction = await Transaction.findOne({
             where: { 
-                id: transactionId,
-                end: null // Transaksi belum selesai
+                id: transactionId
             },
             include: [{
                 model: Device,
@@ -490,8 +491,25 @@ const addTime = async (req, res) => {
         });
 
         if (!transaction) {
+            console.log('Transaction not found for ID:', transactionId);
             return res.status(404).json({
-                message: 'Transaksi tidak ditemukan atau sudah selesai'
+                message: 'Transaksi tidak ditemukan'
+            });
+        }
+
+        console.log('Transaction found:', {
+            id: transaction.id,
+            deviceId: transaction.deviceId,
+            start: transaction.start,
+            end: transaction.end,
+            duration: transaction.duration,
+            cost: transaction.cost
+        });
+
+        // Cek apakah transaksi sudah selesai
+        if (transaction.end !== null) {
+            return res.status(400).json({
+                message: 'Transaksi sudah selesai dan tidak bisa ditambah waktu'
             });
         }
 

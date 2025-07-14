@@ -875,7 +875,7 @@ paths:
                       addedTime:
                         type: integer
         "400":
-          description: Device tidak memiliki timer yang aktif atau timer di-pause
+          description: Device tidak memiliki timer yang aktif, timer di-pause, atau transaksi sudah selesai
           content:
             application/json:
               schema:
@@ -886,8 +886,9 @@ paths:
                     examples:
                       timer_not_active: "Device tidak memiliki timer yang aktif. Timer mungkin sudah selesai atau belum dimulai."
                       timer_paused: "Device memiliki timer yang di-pause. Harap resume timer terlebih dahulu sebelum menambah waktu."
+                      transaction_ended: "Transaksi sudah selesai dan tidak bisa ditambah waktu"
         "404":
-          description: Transaksi tidak ditemukan atau sudah selesai
+          description: Transaksi tidak ditemukan
 
 
 
