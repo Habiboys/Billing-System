@@ -107,7 +107,7 @@ const adminDashboard = async (req, res) => {
         const adminProfile = {
             name: req.user.email.split('@')[0], // Username dari email
             email: req.user.email,
-            status: isUserOnline(req.user.id) ? "Online" : "Offline",
+            status: "Online",
             profile_picture: null // Tidak ada profile picture dari database
         };
         
