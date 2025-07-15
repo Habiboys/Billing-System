@@ -1,21 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
-const authMiddleware = require('../middlewares/auth.middleware');
+const { tokenValidation, verifyAdmin } = require('../middlewares/auth.middleware');
 
 // Apply auth middleware to all routes
-router.use(authMiddleware);
+
 
 // Get all users
-router.get('/', userController.getAllUsers);
+router.get('/', tokenValidation, verifyAdmin,userController.getAllUsers);
 
 // Get user by ID
-router.get('/:userId', userController.getUserById);
+router.get('/:userId', tokenValidation, verifyAdmin,userController.getUserById);
 
 // Create new user
-router.post('/', userController.createUser);
+router.post('/', tokenValidation, verifyAdmin,  userController.createUser);
 
 // Block/Unblock user
-router.patch('/:userId/block', userController.blockUser);
+router.patch('/:userId/block', tokenValidation, verifyAdmin, userController.blockUser);
 
 module.exports = router;
