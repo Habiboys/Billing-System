@@ -8,6 +8,8 @@ let pausedDevices = new Set(); // Menyimpan device yang timer-nya dihentikan
 let lastActivityTime = new Map(); // Menyimpan waktu aktivitas terakhir per device
 let mobileClients = new Set(); // Menyimpan koneksi mobile untuk notifikasi
 let deviceDisconnectCallbacks = new Map(); // Callback untuk handle disconnect
+let userConnections = new Map(); // Menyimpan koneksi user berdasarkan userId
+let onlineUsers = new Set(); // Menyimpan userId yang sedang online
 // Hapus: let sseClients = new Map(); // Menyimpan SSE clients untuk mobile notifications
 
 // Fungsi untuk handle timer completion
@@ -178,6 +180,32 @@ const initWebSocketServer = (server) => {
                     return;
                 }
                 
+                // Handle user connection registration
+                if (data.type === 'user_connect') {
+                    const userId = data.userId;
+                    if (userId) {
+                        // Update existing connection if exists
+                        if (userConnections.has(userId)) {
+                            const existingWs = userConnections.get(userId);
+                            if (existingWs !== ws) {
+                                existingWs.close();
+                                console.log(`Closing old connection for user ${userId}`);
+                            }
+                        }
+                        userConnections.set(userId, ws);
+                        onlineUsers.add(userId);
+                        console.log(`User ${userId} connected and marked as online`);
+                        
+                        // Kirim konfirmasi ke user
+                        ws.send(JSON.stringify({
+                            type: 'user_registration',
+                            status: 'success',
+                            userId: userId
+                        }));
+                    }
+                    return;
+                }
+                
                 // Jika ESP32 mengirim deviceId, simpan mapping
                 if (deviceId) {
                     // Update existing connection if exists
@@ -256,6 +284,16 @@ const initWebSocketServer = (server) => {
                 mobileClients.delete(ws);
                 console.log('Mobile client disconnected');
                 return;
+            }
+            
+            // Check if it's a user connection
+            for (let [userId, client] of userConnections.entries()) {
+                if (client === ws) {
+                    userConnections.delete(userId);
+                    onlineUsers.delete(userId);
+                    console.log(`User ${userId} disconnected and marked as offline`);
+                    break;
+                }
             }
             
             // Remove dari mapping untuk IoT device
@@ -674,6 +712,16 @@ const onDeviceDisconnect = (deviceId, callback) => {
     deviceDisconnectCallbacks.set(deviceId, callback);
 };
 
+// Fungsi untuk mengecek apakah user online
+const isUserOnline = (userId) => {
+    return onlineUsers.has(userId);
+};
+
+// Fungsi untuk mendapatkan daftar user online
+const getOnlineUsers = () => {
+    return Array.from(onlineUsers);
+};
+
 // Fungsi untuk mendapatkan status koneksi
 const getConnectionStatus = () => {
     // Ubah format data untuk memastikan konsistensi dengan device_id
@@ -725,6 +773,8 @@ module.exports = {
     canResumeTimer,
     notifyMobileClients,
     onDeviceDisconnect,
+    isUserOnline,
+    getOnlineUsers,
     // Export internal variables untuk debugging
     connectedClients,
     activeTimers,

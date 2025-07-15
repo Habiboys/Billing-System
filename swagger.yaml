@@ -1423,18 +1423,19 @@ paths:
                     properties:
                       name:
                         type: string
-                        example: "Joe Natania"
+                        example: "admin"
                       email:
                         type: string
                         format: email
-                        example: "joenatania@gmail.com"
+                        example: "admin@example.com"
                       status:
                         type: string
                         example: "Online"
                       profile_picture:
                         type: string
                         format: uri
-                        example: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+                        nullable: true
+                        example: null
                   device_status:
                     type: object
                     properties:
@@ -1467,7 +1468,7 @@ paths:
                         example: "Minggu ini"
                       total:
                         type: integer
-                        example: 2100000
+                        example: 1280000
                       chart_data:
                         type: array
                         items:
@@ -1478,7 +1479,7 @@ paths:
                               example: "Senin"
                             income:
                               type: integer
-                              example: 300000
+                              example: 150000
                   registered_users:
                     type: object
                     properties:
@@ -1495,7 +1496,7 @@ paths:
                               format: uuid
                             name:
                               type: string
-                              example: "Black Widow"
+                              example: "admin"
                             email:
                               type: string
                               format: email
@@ -1511,10 +1512,10 @@ paths:
                         example: 25
               example:
                 admin_profile:
-                  name: "Joe Natania"
-                  email: "joenatania@gmail.com"
+                  name: "admin"
+                  email: "admin@example.com"
                   status: "Online"
-                  profile_picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+                  profile_picture: null
                 device_status:
                   running:
                     text: "Perangkat sedang berjalan"
@@ -1525,33 +1526,33 @@ paths:
                 total_income:
                   title: "Total pemasukan"
                   timeframe: "Minggu ini"
-                  total: 2100000
+                  total: 1280000
                   chart_data:
                     - day: "Senin"
-                      income: 300000
-                    - day: "Selasa"
-                      income: 450000
-                    - day: "Rabu"
-                      income: 200000
-                    - day: "Kamis"
-                      income: 350000
-                    - day: "Jumat"
-                      income: 2100000
-                    - day: "Sabtu"
                       income: 150000
+                    - day: "Selasa"
+                      income: 200000
+                    - day: "Rabu"
+                      income: 180000
+                    - day: "Kamis"
+                      income: 250000
+                    - day: "Jumat"
+                      income: 300000
+                    - day: "Sabtu"
+                      income: 120000
                     - day: "Minggu"
-                      income: 100000
+                      income: 80000
                 registered_users:
                   title: "User yang terdaftar"
                   users:
                     - id: "123e4567-e89b-12d3-a456-426614174000"
-                      name: "Black Widow"
-                      email: "blackwidow@example.com"
+                      name: "admin"
+                      email: "admin@example.com"
                       status: "Online"
-                      profile_picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
+                      profile_picture: null
                     - id: "123e4567-e89b-12d3-a456-426614174001"
-                      name: "User 2"
-                      email: "user2@example.com"
+                      name: "user1"
+                      email: "user1@example.com"
                       status: "Offline"
                       profile_picture: null
                   total_count: 25

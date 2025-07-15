@@ -1,4 +1,4 @@
-const { getConnectionStatus, isTimerActive } = require('../wsClient');
+const { getConnectionStatus, isTimerActive, isUserOnline } = require('../wsClient');
 const { Device, Transaction, Category, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
@@ -103,12 +103,12 @@ const adminDashboard = async (req, res) => {
         const readyDevices = connectionStatus.devices.filter(device => device.status === 'off');
         const totalDevices = devices.length;
         
-        // Data profil admin (hardcoded untuk demo)
+        // Data profil admin dari user yang sedang login
         const adminProfile = {
-            name: "Joe Natania",
-            email: "joenatania@gmail.com",
-            status: "Online",
-            profile_picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+            name: req.user.email.split('@')[0], // Username dari email
+            email: req.user.email,
+            status: isUserOnline(req.user.id) ? "Online" : "Offline",
+            profile_picture: null // Tidak ada profile picture dari database
         };
         
         // Menghitung total pemasukan mingguan
@@ -166,14 +166,12 @@ const adminDashboard = async (req, res) => {
         });
         
         // Format data user untuk response
-        const usersList = registeredUsers.map((user, index) => ({
+        const usersList = registeredUsers.map((user) => ({
             id: user.id,
-            name: index === 0 ? "Black Widow" : `User ${index + 1}`, // Demo names
+            name: user.email.split('@')[0], // Menggunakan username dari email
             email: user.email,
-            status: user.isActive ? "Online" : "Offline",
-            profile_picture: index === 0 
-                ? "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
-                : null // Placeholder untuk user lain
+            status: isUserOnline(user.id) ? "Online" : "Offline",
+            profile_picture: null // Tidak ada profile picture dari database
         }));
         
         // Menyiapkan data untuk response
