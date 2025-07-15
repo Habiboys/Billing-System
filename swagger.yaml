@@ -290,23 +290,7 @@ paths:
         "401":
           description: Invalid refresh token
 
-  /auth/create-user:
-    post:
-      summary: Create a new user (Admin only)
-      tags: [Authentication]
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-      responses:
-        "201":
-          description: User created successfully
-        "403":
-          description: Forbidden (Admin access required)
+
 
   # USER ROUTES
   /user:
@@ -351,6 +335,37 @@ paths:
           description: Unauthorized
         "403":
           description: Forbidden (Admin access required)
+  /user:
+  post:
+    summary: Create a new user (Admin only)
+    tags: [User]
+    security:
+      - BearerAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+              password:
+                type: string
+              type:
+                type: string
+                enum: [admin, user]
+                default: user
+            required:
+              - email
+              - password
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
 
   /user/{userId}:
     get:
