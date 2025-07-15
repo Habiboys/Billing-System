@@ -1,5 +1,5 @@
 const { getConnectionStatus, isTimerActive } = require('../wsClient');
-const { Device, Transaction, Category, sequelize } = require('../models');
+const { Device, Transaction, Category, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 const dashboard = async (req, res) => {
@@ -85,4 +85,128 @@ const dashboard = async (req, res) => {
     }
 }
 
-module.exports = { dashboard };
+const adminDashboard = async (req, res) => {
+    try {
+        // Mendapatkan status koneksi dari semua perangkat
+        const connectionStatus = getConnectionStatus();
+        
+        // Mendapatkan data device dari database
+        const devices = await Device.findAll({
+            include: [{
+                model: Category,
+                attributes: ['categoryName', 'cost', 'satuanWaktu']
+            }]
+        });
+        
+        // Menghitung status perangkat
+        const activeDevices = connectionStatus.devices.filter(device => device.status === 'on');
+        const readyDevices = connectionStatus.devices.filter(device => device.status === 'off');
+        const totalDevices = devices.length;
+        
+        // Data profil admin (hardcoded untuk demo)
+        const adminProfile = {
+            name: "Joe Natania",
+            email: "joenatania@gmail.com",
+            status: "Online",
+            profile_picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+        };
+        
+        // Menghitung total pemasukan mingguan
+        const startOfWeek = new Date();
+        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Senin
+        startOfWeek.setHours(0, 0, 0, 0);
+        
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(endOfWeek.getDate() + 6); // Minggu
+        endOfWeek.setHours(23, 59, 59, 999);
+        
+        const weeklyTransactions = await Transaction.findAll({
+            where: {
+                createdAt: {
+                    [Op.between]: [startOfWeek, endOfWeek]
+                }
+            },
+            include: [{
+                model: Device,
+                include: [{
+                    model: Category,
+                    attributes: ['categoryName', 'cost', 'satuanWaktu']
+                }]
+            }]
+        });
+        
+        // Menghitung pemasukan per hari
+        const dailyIncome = {};
+        const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+        
+        daysOfWeek.forEach(day => {
+            dailyIncome[day] = 0;
+        });
+        
+        weeklyTransactions.forEach(transaction => {
+            const dayIndex = transaction.createdAt.getDay();
+            const dayName = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; // Convert Sunday=0 to Sunday=6
+            dailyIncome[dayName] += transaction.cost || 0;
+        });
+        
+        // Format data pemasukan mingguan
+        const weeklyIncomeData = daysOfWeek.map(day => ({
+            day: day,
+            income: dailyIncome[day]
+        }));
+        
+        // Total pemasukan mingguan
+        const totalWeeklyIncome = Object.values(dailyIncome).reduce((sum, income) => sum + income, 0);
+        
+        // Mendapatkan daftar user terdaftar (5 user teratas)
+        const registeredUsers = await User.findAll({
+            limit: 5,
+            order: [['createdAt', 'DESC']],
+            attributes: ['id', 'email', 'type', 'isActive', 'createdAt']
+        });
+        
+        // Format data user untuk response
+        const usersList = registeredUsers.map((user, index) => ({
+            id: user.id,
+            name: index === 0 ? "Black Widow" : `User ${index + 1}`, // Demo names
+            email: user.email,
+            status: user.isActive ? "Online" : "Offline",
+            profile_picture: index === 0 
+                ? "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
+                : null // Placeholder untuk user lain
+        }));
+        
+        // Menyiapkan data untuk response
+        const response = {
+            admin_profile: adminProfile,
+            device_status: {
+                running: {
+                    text: "Perangkat sedang berjalan",
+                    value: `${activeDevices.length}/${totalDevices}`
+                },
+                ready: {
+                    text: "Perangkat siap digunakan", 
+                    value: `${readyDevices.length}/${totalDevices}`
+                }
+            },
+            total_income: {
+                title: "Total pemasukan",
+                timeframe: "Minggu ini",
+                total: totalWeeklyIncome,
+                chart_data: weeklyIncomeData
+            },
+            registered_users: {
+                title: "User yang terdaftar",
+                users: usersList,
+                total_count: await User.count()
+            }
+        };
+        
+        res.status(200).json(response);
+    } catch (error) {
+        console.error('Error in admin dashboard controller:', error);
+        res.status(500).json({ message: error.message });
+    }
+}
+
+module.exports = { dashboard, adminDashboard };

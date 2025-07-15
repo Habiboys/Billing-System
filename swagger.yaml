@@ -1420,3 +1420,186 @@ paths:
                               type: integer
                             cost:
                               type: integer
+
+  /dashboard/admin:
+    get:
+      summary: Get admin dashboard data
+      tags: [Dashboard]
+      description: Mendapatkan informasi dashboard admin termasuk profil admin, status perangkat, total pemasukan mingguan, dan daftar user terdaftar
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Admin dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  admin_profile:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                        example: "Joe Natania"
+                      email:
+                        type: string
+                        format: email
+                        example: "joenatania@gmail.com"
+                      status:
+                        type: string
+                        example: "Online"
+                      profile_picture:
+                        type: string
+                        format: uri
+                        example: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+                  device_status:
+                    type: object
+                    properties:
+                      running:
+                        type: object
+                        properties:
+                          text:
+                            type: string
+                            example: "Perangkat sedang berjalan"
+                          value:
+                            type: string
+                            example: "35/50"
+                      ready:
+                        type: object
+                        properties:
+                          text:
+                            type: string
+                            example: "Perangkat siap digunakan"
+                          value:
+                            type: string
+                            example: "15/50"
+                  total_income:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: "Total pemasukan"
+                      timeframe:
+                        type: string
+                        example: "Minggu ini"
+                      total:
+                        type: integer
+                        example: 2100000
+                      chart_data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            day:
+                              type: string
+                              example: "Senin"
+                            income:
+                              type: integer
+                              example: 300000
+                  registered_users:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: "User yang terdaftar"
+                      users:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            name:
+                              type: string
+                              example: "Black Widow"
+                            email:
+                              type: string
+                              format: email
+                            status:
+                              type: string
+                              example: "Online"
+                            profile_picture:
+                              type: string
+                              format: uri
+                              nullable: true
+                      total_count:
+                        type: integer
+                        example: 25
+              example:
+                admin_profile:
+                  name: "Joe Natania"
+                  email: "joenatania@gmail.com"
+                  status: "Online"
+                  profile_picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face"
+                device_status:
+                  running:
+                    text: "Perangkat sedang berjalan"
+                    value: "35/50"
+                  ready:
+                    text: "Perangkat siap digunakan"
+                    value: "15/50"
+                total_income:
+                  title: "Total pemasukan"
+                  timeframe: "Minggu ini"
+                  total: 2100000
+                  chart_data:
+                    - day: "Senin"
+                      income: 300000
+                    - day: "Selasa"
+                      income: 450000
+                    - day: "Rabu"
+                      income: 200000
+                    - day: "Kamis"
+                      income: 350000
+                    - day: "Jumat"
+                      income: 2100000
+                    - day: "Sabtu"
+                      income: 150000
+                    - day: "Minggu"
+                      income: 100000
+                registered_users:
+                  title: "User yang terdaftar"
+                  users:
+                    - id: "123e4567-e89b-12d3-a456-426614174000"
+                      name: "Black Widow"
+                      email: "blackwidow@example.com"
+                      status: "Online"
+                      profile_picture: "https://images.unsplash.com/photo-1494790108755-2616b612b786?w=40&h=40&fit=crop&crop=face"
+                    - id: "123e4567-e89b-12d3-a456-426614174001"
+                      name: "User 2"
+                      email: "user2@example.com"
+                      status: "Offline"
+                      profile_picture: null
+                  total_count: 25
+        "401":
+          description: Unauthorized - Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "No token provided"
+        "403":
+          description: Forbidden - User bukan admin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Access forbidden. Admin rights required."
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error"
