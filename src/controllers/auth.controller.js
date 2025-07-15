@@ -14,10 +14,16 @@ const login = async (req, res) => {
         if (!email || !password) {
             return res.status(400).json({ message: 'Email dan password harus diisi' });
         }
+        
 
         const user = await User.findOne({ where: { email } });
         if (!user) {
             return res.status(401).json({ message: 'Email atau password salah' });
+        }
+
+        const isActive = user.isActive;
+        if (!isActive) {
+            return res.status(401).json({ message: 'User tidak aktif' });
         }
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
