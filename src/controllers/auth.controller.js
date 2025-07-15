@@ -69,43 +69,7 @@ const login = async (req, res) => {
     }
 }
 
-const createUser = async (req, res) => {
-    try {
-        const { email, password, type = 'user' } = req.body;
-        
-        if (!email || !password) {
-            return res.status(400).json({ message: 'Email dan password harus diisi' });
-        }
 
-        // Cek apakah email sudah terdaftar
-        const existingUser = await User.findOne({ where: { email } });
-        if (existingUser) {
-            return res.status(400).json({ message: 'Email sudah terdaftar' });
-        }
-
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const userId = uuidv4();
-        
-        const user = await User.create({ 
-            id: userId,
-            email, 
-            password: hashedPassword, 
-            type: type
-        });
-        
-        // Hapus password dari response
-        const userData = user.toJSON();
-        delete userData.password;
-        
-        return res.status(201).json({ 
-            message: 'User berhasil dibuat',
-            data: userData
-        });
-    } catch (error) {
-        console.error('Create user error:', error);
-        return res.status(500).json({ message: 'Terjadi kesalahan pada server' });
-    }
-}
 
 const refreshToken = async (req, res) => {
     try {
@@ -155,6 +119,5 @@ const refreshToken = async (req, res) => {
 
 module.exports = {
     login,
-    createUser,
     refreshToken
 };
