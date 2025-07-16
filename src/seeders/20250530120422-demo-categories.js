@@ -6,18 +6,18 @@ module.exports = {
   async up (queryInterface, Sequelize) {
     return queryInterface.bulkInsert('Categories', [{
       id: uuidv4(),
-      categoryName: 'PC Gaming',
+      categoryName: 'PS4 Standard - 1 Jam',
       cost: 10000, // Rp 10.000 per jam
-      satuanWaktu: 'jam',
-      description: 'PC Gaming High End',
+      periode: 60,
+      description: 'PS 4',
       createdAt: new Date(),
       updatedAt: new Date()
     }, {
       id: uuidv4(),
-      categoryName: 'PC Biasa',
-      cost: 5000, // Rp 5.000 per jam
-      satuanWaktu: 'jam',
-      description: 'PC untuk browsing dan office',
+      categoryName: 'PS5 Standard - 1 Jam',
+      cost: 15000, // Rp 15.000 per jam
+      periode: 60,
+      description: 'PS 5',
       createdAt: new Date(),
       updatedAt: new Date()
     }]);

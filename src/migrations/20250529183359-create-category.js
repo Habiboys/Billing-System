@@ -15,11 +15,8 @@ module.exports = {
       cost: {
         type: Sequelize.INTEGER
       },
-      satuanWaktu: {
-        type: Sequelize.STRING
-      },
-      description: {
-        type: Sequelize.STRING
+      periode: {
+        type: Sequelize.INTEGER
       },
       createdAt: {
         allowNull: false,

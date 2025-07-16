@@ -2,7 +2,7 @@ const {Category} = require('../models');
 const {v4: uuidv4} = require('uuid');
 //tambah Category
 const createCategory = async (req, res) => {
-    const {categoryName, cost, satuanWaktu, description} = req.body;
+    const {categoryName, cost, periode} = req.body;
     try{
         const existingCategory = await Category.findOne({
             where: {
@@ -19,8 +19,7 @@ const createCategory = async (req, res) => {
             id: categoryId,
             categoryName,
             cost,
-            satuanWaktu,
-            description
+            periode,
         })
         res.status(201).json({
             message: 'Category created',
@@ -76,7 +75,7 @@ const getCategoryById = async (req, res) => {
 
 const updateCategory = async (req, res) => {
     const {id} = req.params;
-    const {categoryName, cost, satuanWaktu, description} = req.body;
+    const {categoryName, cost, periode} = req.body;
     try{
         const category = await Category.findOne({
             where: {
@@ -91,8 +90,7 @@ const updateCategory = async (req, res) => {
         //update category
         category.categoryName = categoryName;
         category.cost = cost;
-        category.satuanWaktu = satuanWaktu;
-        category.description = description;
+        category.periode = periode;
         await category.save();
         res.status(200).json({
             message: 'Category updated',

@@ -19,7 +19,7 @@ module.exports = {
       start: oneHourAgo,
       end: now,
       duration: 60, // 60 menit
-      cost: 10000, // Rp 10.000 untuk 1 jam PC Gaming
+      cost: 10000, // Rp 10.000 untuk 1 jam PS4 Standard
       createdAt: new Date(),
       updatedAt: new Date()
     }]);

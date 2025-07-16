@@ -5,32 +5,6 @@ info:
   description: |
     API documentation for the Billing System application
     
-    ## WebSocket Commands
-    
-    ### Commands dari Server ke ESP32:
-    - `start` + `timer`: Memulai timer baru dengan durasi tertentu
-    - `start` (tanpa timer): Melanjutkan timer yang di-pause (otomatis handle resume)
-    - `stop`: Menghentikan timer (pause)
-    - `end`: Mengakhiri timer secara permanen
-    - `add_time`: Menambah waktu ke timer yang sedang berjalan
-    
-    ### Endpoint Command:
-    - `POST /device/{id}/command`: Mengirim command start/stop/end (termasuk resume timer otomatis)
-    
-    ### Status dari ESP32 ke Server:
-    - `timer_started`: Timer baru dimulai
-    - `timer_paused`: Timer di-pause
-    - `timer_resumed`: Timer dilanjutkan
-    - `timer_ended`: Timer diakhiri
-    - `relay_off`: Timer selesai, relay dimatikan
-    - `time_added`: Waktu berhasil ditambahkan
-    
-    ### Notifikasi WebSocket:
-    - `device_disconnect`: Device terputus
-    - `device_connect`: Device terhubung
-    - `timer_paused_disconnect`: Timer di-pause karena disconnect
-    - `timer_resumed`: Timer dilanjutkan manual
-    - `timer_auto_resumed`: Timer otomatis dilanjutkan saat reconnect
 servers:
   - url: http://34.101.143.2:3000/api
     description: Deploy Server
@@ -42,6 +16,8 @@ servers:
 tags:
   - name: User
     description: Endpoint untuk manajemen user (admin, block, list, dll)
+  - name: Dashboard
+    description: Endpoint untuk dashboard admin dan user dengan data real-time
 
 components:
   securitySchemes:
@@ -83,15 +59,13 @@ components:
         cost:
           type: integer
           description: Cost per unit time
-        satuanWaktu:
-          type: string
-          enum: [detik, menit, jam]
-        description:
-          type: string
+        periode:
+          type: integer
+          description: Periode in minutes 
       required:
         - categoryName
         - cost
-        - satuanWaktu
+        - periode
     
     Device:
       type: object
@@ -112,10 +86,10 @@ components:
           description: Waktu mulai timer
         timerDuration:
           type: integer
-          description: Durasi timer dalam milliseconds
+          description: Durasi timer dalam detik (seconds)
         timerElapsed:
           type: integer
-          description: Waktu yang sudah berlalu dalam milliseconds
+          description: Waktu yang sudah berlalu dalam detik (seconds)
         timerStatus:
           type: string
           enum: [start, stop, end]
@@ -160,7 +134,7 @@ components:
           nullable: true
         duration:
           type: integer
-          description: Durasi dalam milliseconds
+          description: Durasi dalam detik (seconds)
         cost:
           type: integer
           description: Biaya transaksi
@@ -795,19 +769,17 @@ paths:
                 start:
                   type: string
                   format: date-time
-                end:
-                  type: string
-                  format: date-time
-                  nullable: true
+                  description: Waktu mulai transaksi (opsional, default: waktu sekarang)
                 duration:
                   type: integer
-                  description: Durasi dalam milliseconds
-                cost:
-                  type: integer
-                  description: Biaya transaksi
+                  description: Durasi dalam detik (seconds)
               required:
                 - deviceId
                 - duration
+            example:
+              deviceId: "device_001"
+              start: "2024-01-15T10:30:00Z"
+              duration: 3600
       responses:
         "201":
           description: Transaksi berhasil dibuat
@@ -818,6 +790,7 @@ paths:
                 properties:
                   message:
                     type: string
+                    example: "Transaksi berhasil dibuat"
                   data:
                     type: object
                     properties:
@@ -825,6 +798,41 @@ paths:
                         $ref: "#/components/schemas/Transaction"
                       deviceCommand:
                         type: object
+                        properties:
+                          type:
+                            type: string
+                            example: "command"
+                          deviceId:
+                            type: string
+                            example: "device_001"
+                          command:
+                            type: string
+                            example: "start"
+                          timer:
+                            type: integer
+                            example: 3600
+                          timestamp:
+                            type: string
+                            format: date-time
+              example:
+                message: "Transaksi berhasil dibuat"
+                data:
+                  transaction:
+                    id: "123e4567-e89b-12d3-a456-426614174000"
+                    deviceId: "device_001"
+                    userId: "user-123"
+                    start: "2024-01-15T10:30:00Z"
+                    end: null
+                    duration: 3600
+                    cost: 10000
+                    createdAt: "2024-01-15T10:30:00Z"
+                    updatedAt: "2024-01-15T10:30:00Z"
+                  deviceCommand:
+                    type: "command"
+                    deviceId: "device_001"
+                    command: "start"
+                    timer: 3600
+                    timestamp: "2024-01-15T10:30:00Z"
         "400":
           description: Data tidak valid, device tidak terkoneksi, atau device memiliki timer aktif/pause
           content:
@@ -834,11 +842,23 @@ paths:
                 properties:
                   message:
                     type: string
-                    examples:
-                      device_not_connected: "Device tidak terkoneksi ke server WebSocket"
-                      timer_active: "Device masih memiliki timer yang aktif. Harap tunggu timer selesai atau gunakan command stop terlebih dahulu."
-                      timer_paused: "Device memiliki timer yang di-pause. Gunakan command start untuk melanjutkan timer yang ada, atau command end untuk mengakhiri timer."
-                      timer_in_database: "Device masih memiliki timer yang aktif di database. Harap tunggu timer selesai atau gunakan command end terlebih dahulu."
+              examples:
+                device_not_connected:
+                  summary: Device tidak terkoneksi
+                  value:
+                    message: "Device tidak terkoneksi ke server WebSocket"
+                timer_active:
+                  summary: Device memiliki timer aktif
+                  value:
+                    message: "Device masih memiliki timer yang aktif. Harap tunggu timer selesai atau gunakan command stop terlebih dahulu."
+                timer_paused:
+                  summary: Device memiliki timer yang di-pause
+                  value:
+                    message: "Device memiliki timer yang di-pause. Gunakan command start untuk melanjutkan timer yang ada, atau command end untuk mengakhiri timer."
+                invalid_input:
+                  summary: Input tidak valid
+                  value:
+                    message: "deviceId, dan duration wajib diisi"
         "404":
           description: Device tidak ditemukan
 
@@ -1325,9 +1345,21 @@ paths:
   # DASHBOARD ROUTES
   /dashboard:
     get:
-      summary: Get dashboard data
+      summary: Get user dashboard data
       tags: [Dashboard]
-      description: Mendapatkan informasi dashboard termasuk status device aktif dan riwayat penggunaan
+      description: |
+        Mendapatkan informasi dashboard untuk user biasa termasuk:
+        
+        **Summary:**
+        - Total perangkat aktif dan tidak aktif
+        
+        **Perangkat Aktif:**
+        - Daftar perangkat yang sedang berjalan
+        - Informasi timer, durasi, dan status
+        
+        **Riwayat Penggunaan:**
+        - Perangkat yang terakhir digunakan
+        - Data transaksi terakhir
       security:
         - BearerAuth: []
       responses:
@@ -1358,7 +1390,7 @@ paths:
                           type: string
                         category_cost:
                           type: integer
-                        satuan_waktu:
+                        periode:
                           type: string
                         status:
                           type: string
@@ -1387,7 +1419,7 @@ paths:
                           type: string
                         category_cost:
                           type: integer
-                        satuan_waktu:
+                        periode:
                           type: string
                         last_used:
                           type: object
@@ -1402,14 +1434,99 @@ paths:
                               type: integer
                             cost:
                               type: integer
+              example:
+                summary:
+                  total_active: 35
+                  total_inactive: 15
+                active_devices:
+                  - device_id: "device_001"
+                    name: "Device 1"
+                    category: "Kategori 1"
+                    category_cost: 10000
+                    periode: 60
+                    status: "on"
+                    timer_start: "2024-01-15T10:30:00Z"
+                    timer_duration: 3600
+                    timer_elapsed: 1800
+                    timer_status: "start"
+                    last_paused_at: null
+                last_used_devices:
+                  - device_id: "device_002"
+                    name: "Device 2"
+                    category: "Kategori 2"
+                    category_cost: 15000
+                    periode: 60
+                    last_used:
+                      start: "2024-01-15T09:00:00Z"
+                      end: "2024-01-15T09:30:00Z"
+                      duration: 1800
+                      cost: 15000
+        "401":
+          description: Unauthorized - Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "No token provided"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Internal server error"
 
   /dashboard/admin:
     get:
       summary: Get admin dashboard data
       tags: [Dashboard]
-      description: Mendapatkan informasi dashboard admin termasuk profil admin, status perangkat, total pemasukan mingguan, dan daftar user terdaftar
+      description: |
+        Mendapatkan informasi dashboard admin yang komprehensif termasuk:
+        
+        **Profil Admin:**
+        - Nama, email, status online/offline, dan foto profil
+        
+        **Status Perangkat:**
+        - Perangkat sedang berjalan (aktif dengan timer)
+        - Perangkat siap digunakan (tidak aktif)
+        - Perangkat hampir selesai (sisa waktu ≤ 30 menit)
+        
+        **Total Pemasukan:**
+        - Data pemasukan dengan filter waktu (minggu/bulan/tahun)
+        - Chart data sesuai periode yang dipilih
+        - Daftar filter yang tersedia
+        
+        **Daftar Perangkat Sedang Berjalan:**
+        - 10 perangkat teratas yang sedang aktif
+        - Informasi nama, kategori, dan sisa waktu
+        
+        **User Terdaftar:**
+        - 6 user teratas dengan status online/offline
+        - Total jumlah user terdaftar
       security:
         - BearerAuth: []
+      parameters:
+        - name: timeFilter
+          in: query
+          description: |
+            Filter waktu untuk total pemasukan dan chart data.
+            
+            **Opsi yang tersedia:**
+            - `week`: Minggu ini (Senin-Minggu) - Default
+            - `month`: Bulan ini (per minggu dalam bulan)
+            - `year`: Tahun ini (per bulan dalam tahun)
+          required: false
+          schema:
+            type: string
+            enum: [week, month, year]
+            default: week
+          example: "week"
       responses:
         "200":
           description: Admin dashboard data
@@ -1457,6 +1574,15 @@ paths:
                           value:
                             type: string
                             example: "15/50"
+                      almost_finished:
+                        type: object
+                        properties:
+                          text:
+                            type: string
+                            example: "Perangkat hampir selesai"
+                          value:
+                            type: string
+                            example: "5/35"
                   total_income:
                     type: object
                     properties:
@@ -1480,6 +1606,43 @@ paths:
                             income:
                               type: integer
                               example: 150000
+                      available_filters:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            value:
+                              type: string
+                              example: "week"
+                            label:
+                              type: string
+                              example: "Minggu ini"
+                  running_devices_list:
+                    type: object
+                    properties:
+                      title:
+                        type: string
+                        example: "Daftar Perangkat Sedang Berjalan"
+                      devices:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            no:
+                              type: integer
+                              example: 1
+                            nama_perangkat:
+                              type: string
+                              example: "Device 1"
+                            kategori:
+                              type: string
+                              example: "Kategori 1"
+                            sisa_waktu:
+                              type: string
+                              example: "90 menit"
+                      total_count:
+                        type: integer
+                        example: 35
                   registered_users:
                     type: object
                     properties:
@@ -1491,22 +1654,19 @@ paths:
                         items:
                           type: object
                           properties:
-                            id:
-                              type: string
-                              format: uuid
-                            name:
-                              type: string
-                              example: "admin"
+                            no:
+                              type: integer
+                              example: 1
                             email:
                               type: string
                               format: email
+                              example: "admin@example.com"
+                            nama:
+                              type: string
+                              example: "admin"
                             status:
                               type: string
                               example: "Online"
-                            profile_picture:
-                              type: string
-                              format: uri
-                              nullable: true
                       total_count:
                         type: integer
                         example: 25
@@ -1523,6 +1683,21 @@ paths:
                   ready:
                     text: "Perangkat siap digunakan"
                     value: "15/50"
+                  almost_finished:
+                    text: "Perangkat hampir selesai"
+                    value: "5/35"
+                running_devices_list:
+                  title: "Daftar Perangkat Sedang Berjalan"
+                  devices:
+                    - no: 1
+                      nama_perangkat: "Device 1"
+                      kategori: "Kategori 1"
+                      sisa_waktu: "90 menit"
+                    - no: 2
+                      nama_perangkat: "Device 2"
+                      kategori: "Kategori 2"
+                      sisa_waktu: "45 menit"
+                  total_count: 35
                 total_income:
                   title: "Total pemasukan"
                   timeframe: "Minggu ini"
@@ -1542,20 +1717,35 @@ paths:
                       income: 120000
                     - day: "Minggu"
                       income: 80000
+                  available_filters:
+                    - value: "week"
+                      label: "Minggu ini"
+                    - value: "month"
+                      label: "Bulan ini"
+                    - value: "year"
+                      label: "Tahun ini"
                 registered_users:
                   title: "User yang terdaftar"
                   users:
-                    - id: "123e4567-e89b-12d3-a456-426614174000"
-                      name: "admin"
+                    - no: 1
                       email: "admin@example.com"
+                      nama: "admin"
                       status: "Online"
-                      profile_picture: null
-                    - id: "123e4567-e89b-12d3-a456-426614174001"
-                      name: "user1"
+                    - no: 2
                       email: "user1@example.com"
+                      nama: "user1"
                       status: "Offline"
-                      profile_picture: null
                   total_count: 25
+        "400":
+          description: Bad Request - Parameter tidak valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Invalid timeFilter parameter. Must be one of: week, month, year"
         "401":
           description: Unauthorized - Token tidak valid atau tidak ada
           content:

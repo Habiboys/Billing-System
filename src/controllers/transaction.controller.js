@@ -73,7 +73,7 @@ registerDisconnectHandlers();
 
 const createTransaction = async (req, res) => {
     try {
-        const {deviceId, start, end, duration, cost } = req.body;
+        const {deviceId, start, duration} = req.body;
         
         // Validasi input
         if (!deviceId || !duration) {
@@ -123,11 +123,15 @@ const createTransaction = async (req, res) => {
         }
 
         // Cek apakah device memiliki timer yang aktif di database
-        if (device.timerStatus === 'start') {
-            return res.status(400).json({
-                message: 'Device masih memiliki timer yang aktif di database. Harap tunggu timer selesai atau gunakan command end terlebih dahulu.'
-            });
-        }
+        // if (device.timerStatus === 'start') {
+        //     return res.status(400).json({
+        //         message: 'Device masih memiliki timer yang aktif di database. Harap tunggu timer selesai atau gunakan command end terlebih dahulu.'
+        //     });
+        // }
+
+        //hitung cost berdasarkan kategori
+        const category = await Category.findByPk(device.categoryId);
+        const cost = category.cost * (duration/category.periode);
 
         const transactionId = uuidv4();
      
@@ -136,6 +140,10 @@ const createTransaction = async (req, res) => {
             timerDuration: duration,
             timerStatus: 'start'
         });
+
+
+
+
         //
         // Buat transaksi - end harus null untuk transaksi yang sedang aktif
         const transaction = await Transaction.create({
@@ -145,7 +153,7 @@ const createTransaction = async (req, res) => {
             start,
             end: null, // Transaksi aktif tidak boleh memiliki end timestamp
             duration,
-            cost
+            cost: cost      
         });
 
         // Kirim data ke ESP32
@@ -543,9 +551,8 @@ const addTime = async (req, res) => {
         }
 
         // Update duration di transaksi dan device
-        const additionalTimeMs = additionalTime * 1000; // Convert to milliseconds
-        const newDuration = transaction.duration + additionalTimeMs;
-        const newDeviceDuration = device.timerDuration + additionalTimeMs;
+        const newDuration = transaction.duration + additionalTime;
+        const newDeviceDuration = device.timerDuration + additionalTime;
 
         // Update transaksi
         await transaction.update({
@@ -563,13 +570,9 @@ const addTime = async (req, res) => {
         
         if (category) {
             // Hitung cost berdasarkan kategori
-            if (category.satuanWaktu === 'detik') {
-                newCost = Math.ceil(newDuration / 1000) * category.cost;
-            } else if (category.satuanWaktu === 'menit') {
-                newCost = Math.ceil(newDuration / 60000) * category.cost;
-            } else if (category.satuanWaktu === 'jam') {
-                newCost = Math.ceil(newDuration / 3600000) * category.cost;
-            }
+            newCost = transaction.cost + (category.cost * (additionalTime/category.periode));
+       
+            
             
             // Update cost di transaksi
             await transaction.update({

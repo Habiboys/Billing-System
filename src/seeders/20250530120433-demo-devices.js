@@ -10,25 +10,25 @@ module.exports = {
       { type: queryInterface.sequelize.QueryTypes.SELECT }
     );
 
-    const pcGamingCategory = categories.find(c => c.categoryName === 'PC Gaming');
-    const pcBiasaCategory = categories.find(c => c.categoryName === 'PC Biasa');
+    const ps4Category = categories.find(c => c.categoryName === 'PS4 Standard - 1 Jam');
+    const ps5Category = categories.find(c => c.categoryName === 'PS5 Standard - 1 Jam');
 
     return queryInterface.bulkInsert('Devices', [{
       id: uuidv4(),
-      name: 'PC Gaming 01',
-      categoryId: pcGamingCategory.id,
+      name: 'PS4-01',
+      categoryId: ps4Category.id,
       createdAt: new Date(),
       updatedAt: new Date()
     }, {
       id: uuidv4(),
-      name: 'PC Gaming 02',
-      categoryId: pcGamingCategory.id,
+      name: 'PS4-02',
+      categoryId: ps4Category.id,
       createdAt: new Date(),
       updatedAt: new Date()
     }, {
       id: uuidv4(),
-      name: 'PC Biasa 01',
-      categoryId: pcBiasaCategory.id,
+      name: 'PS5-01',
+      categoryId: ps5Category.id,
       createdAt: new Date(),
       updatedAt: new Date()
     }]);

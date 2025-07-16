@@ -11,7 +11,7 @@ const dashboard = async (req, res) => {
         const devices = await Device.findAll({
             include: [{
                 model: Category,
-                attributes: ['categoryName', 'cost', 'satuanWaktu']
+                attributes: ['categoryName', 'cost', 'periode']
             }]
         });
         
@@ -29,7 +29,7 @@ const dashboard = async (req, res) => {
                     name: deviceData?.name,
                     category: deviceData?.Category?.categoryName,
                     category_cost: deviceData?.Category?.cost,
-                    satuan_waktu: deviceData?.Category?.satuanWaktu,
+                    periode: deviceData?.Category?.periode,
                     status: device.status,
                     timer_start: deviceData?.timerStart,
                     timer_duration: deviceData?.timerDuration,
@@ -48,7 +48,7 @@ const dashboard = async (req, res) => {
                 model: Device,
                 include: [{
                     model: Category,
-                    attributes: ['categoryName', 'cost', 'satuanWaktu']
+                    attributes: ['categoryName', 'cost', 'periode']
                 }]
             }]
         });
@@ -59,7 +59,7 @@ const dashboard = async (req, res) => {
             name: transaction.Device?.name,
             category: transaction.Device?.Category?.categoryName,
             category_cost: transaction.Device?.Category?.cost,
-            satuan_waktu: transaction.Device?.Category?.satuanWaktu,
+            periode: transaction.Device?.Category?.periode,
             last_used: {
                 start: transaction.start,
                 end: transaction.end,
@@ -87,6 +87,14 @@ const dashboard = async (req, res) => {
 
 const adminDashboard = async (req, res) => {
     try {
+        // Mendapatkan filter waktu dari query parameter
+        const timeFilter = req.query.timeFilter || 'week'; // Default: minggu ini
+        const timeFilterText = {
+            'week': 'Minggu ini',
+            'month': 'Bulan ini',
+            'year': 'Tahun ini'
+        };
+        
         // Mendapatkan status koneksi dari semua perangkat
         const connectionStatus = getConnectionStatus();
         
@@ -94,7 +102,7 @@ const adminDashboard = async (req, res) => {
         const devices = await Device.findAll({
             include: [{
                 model: Category,
-                attributes: ['categoryName', 'cost', 'satuanWaktu']
+                attributes: ['categoryName', 'cost', 'periode']
             }]
         });
         
@@ -102,6 +110,16 @@ const adminDashboard = async (req, res) => {
         const activeDevices = connectionStatus.devices.filter(device => device.status === 'on');
         const readyDevices = connectionStatus.devices.filter(device => device.status === 'off');
         const totalDevices = devices.length;
+        
+        // Menghitung perangkat yang hampir selesai (sisa waktu < 30 menit)
+        const almostFinishedDevices = activeDevices.filter(device => {
+            const deviceData = devices.find(d => d.id === device.deviceId);
+            if (!deviceData || !deviceData.timerDuration || !deviceData.timerElapsed) return false;
+            
+            const remainingTime = deviceData.timerDuration - deviceData.timerElapsed;
+            const remainingMinutes = Math.ceil(remainingTime / 60); // Convert seconds to minutes
+            return remainingMinutes <= 30; // 30 menit atau kurang
+        });
         
         // Data profil admin dari user yang sedang login
         const adminProfile = {
@@ -111,67 +129,178 @@ const adminDashboard = async (req, res) => {
             profile_picture: null // Tidak ada profile picture dari database
         };
         
-        // Menghitung total pemasukan mingguan
-        const startOfWeek = new Date();
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay() + 1); // Senin
-        startOfWeek.setHours(0, 0, 0, 0);
+        // Mendapatkan daftar perangkat yang sedang berjalan dengan sisa waktu
+        const runningDevicesList = await Promise.all(
+            activeDevices.slice(0, 10).map(async (device, index) => {
+                const deviceData = devices.find(d => d.id === device.deviceId);
+                const remainingTime = deviceData?.timerDuration && deviceData?.timerElapsed 
+                    ? deviceData.timerDuration - deviceData.timerElapsed 
+                    : 0;
+                const remainingMinutes = Math.max(0, Math.ceil(remainingTime / 60)); // Convert seconds to minutes
+                
+                return {
+                    no: index + 1,
+                    nama_perangkat: deviceData?.name || `Device ${device.deviceId}`,
+                    kategori: deviceData?.Category?.categoryName || 'Kategori 1',
+                    sisa_waktu: `${remainingMinutes} menit`
+                };
+            })
+        );
         
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(endOfWeek.getDate() + 6); // Minggu
-        endOfWeek.setHours(23, 59, 59, 999);
+        // Menghitung total pemasukan berdasarkan filter waktu
+        let startDate, endDate, chartData, totalIncome;
         
-        const weeklyTransactions = await Transaction.findAll({
-            where: {
-                createdAt: {
-                    [Op.between]: [startOfWeek, endOfWeek]
-                }
-            },
-            include: [{
-                model: Device,
+        if (timeFilter === 'week') {
+            // Minggu ini
+            startDate = new Date();
+            startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Senin
+            startDate.setHours(0, 0, 0, 0);
+            
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 6); // Minggu
+            endDate.setHours(23, 59, 59, 999);
+            
+            const weeklyTransactions = await Transaction.findAll({
+                where: {
+                    createdAt: {
+                        [Op.between]: [startDate, endDate]
+                    }
+                },
                 include: [{
-                    model: Category,
-                    attributes: ['categoryName', 'cost', 'satuanWaktu']
+                    model: Device,
+                    include: [{
+                        model: Category,
+                        attributes: ['categoryName', 'cost', 'periode']
+                    }]
                 }]
-            }]
-        });
+            });
+            
+            // Menghitung pemasukan per hari
+            const dailyIncome = {};
+            const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+            
+            daysOfWeek.forEach(day => {
+                dailyIncome[day] = 0;
+            });
+            
+            weeklyTransactions.forEach(transaction => {
+                const dayIndex = transaction.createdAt.getDay();
+                const dayName = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; // Convert Sunday=0 to Sunday=6
+                dailyIncome[dayName] += transaction.cost || 0;
+            });
+            
+            chartData = daysOfWeek.map(day => ({
+                day: day,
+                income: dailyIncome[day]
+            }));
+            
+            totalIncome = Object.values(dailyIncome).reduce((sum, income) => sum + income, 0);
+            
+        } else if (timeFilter === 'month') {
+            // Bulan ini
+            startDate = new Date();
+            startDate.setDate(1); // Tanggal 1 bulan ini
+            startDate.setHours(0, 0, 0, 0);
+            
+            endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 1, 0); // Tanggal terakhir bulan ini
+            endDate.setHours(23, 59, 59, 999);
+            
+            const monthlyTransactions = await Transaction.findAll({
+                where: {
+                    createdAt: {
+                        [Op.between]: [startDate, endDate]
+                    }
+                },
+                include: [{
+                    model: Device,
+                    include: [{
+                        model: Category,
+                        attributes: ['categoryName', 'cost', 'periode']
+                    }]
+                }]
+            });
+            
+            // Menghitung pemasukan per minggu dalam bulan
+            const weeklyIncome = {};
+            const weeksInMonth = Math.ceil((endDate.getDate() - startDate.getDate() + 1) / 7);
+            
+            for (let i = 1; i <= weeksInMonth; i++) {
+                weeklyIncome[`Minggu ${i}`] = 0;
+            }
+            
+            monthlyTransactions.forEach(transaction => {
+                const weekNumber = Math.ceil((transaction.createdAt.getDate() - 1) / 7) + 1;
+                weeklyIncome[`Minggu ${weekNumber}`] += transaction.cost || 0;
+            });
+            
+            chartData = Object.keys(weeklyIncome).map(week => ({
+                day: week,
+                income: weeklyIncome[week]
+            }));
+            
+            totalIncome = Object.values(weeklyIncome).reduce((sum, income) => sum + income, 0);
+            
+        } else if (timeFilter === 'year') {
+            // Tahun ini
+            startDate = new Date();
+            startDate.setMonth(0, 1); // 1 Januari tahun ini
+            startDate.setHours(0, 0, 0, 0);
+            
+            endDate = new Date();
+            endDate.setMonth(11, 31); // 31 Desember tahun ini
+            endDate.setHours(23, 59, 59, 999);
+            
+            const yearlyTransactions = await Transaction.findAll({
+                where: {
+                    createdAt: {
+                        [Op.between]: [startDate, endDate]
+                    }
+                },
+                include: [{
+                    model: Device,
+                    include: [{
+                        model: Category,
+                        attributes: ['categoryName', 'cost', 'periode']
+                    }]
+                }]
+            });
+            
+            // Menghitung pemasukan per bulan
+            const monthlyIncome = {};
+            const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                           'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            months.forEach(month => {
+                monthlyIncome[month] = 0;
+            });
+            
+            yearlyTransactions.forEach(transaction => {
+                const monthIndex = transaction.createdAt.getMonth();
+                monthlyIncome[months[monthIndex]] += transaction.cost || 0;
+            });
+            
+            chartData = months.map(month => ({
+                day: month,
+                income: monthlyIncome[month]
+            }));
+            
+            totalIncome = Object.values(monthlyIncome).reduce((sum, income) => sum + income, 0);
+        }
         
-        // Menghitung pemasukan per hari
-        const dailyIncome = {};
-        const daysOfWeek = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-        
-        daysOfWeek.forEach(day => {
-            dailyIncome[day] = 0;
-        });
-        
-        weeklyTransactions.forEach(transaction => {
-            const dayIndex = transaction.createdAt.getDay();
-            const dayName = daysOfWeek[dayIndex === 0 ? 6 : dayIndex - 1]; // Convert Sunday=0 to Sunday=6
-            dailyIncome[dayName] += transaction.cost || 0;
-        });
-        
-        // Format data pemasukan mingguan
-        const weeklyIncomeData = daysOfWeek.map(day => ({
-            day: day,
-            income: dailyIncome[day]
-        }));
-        
-        // Total pemasukan mingguan
-        const totalWeeklyIncome = Object.values(dailyIncome).reduce((sum, income) => sum + income, 0);
-        
-        // Mendapatkan daftar user terdaftar (5 user teratas)
+        // Mendapatkan daftar user terdaftar (6 user teratas sesuai dashboard)
         const registeredUsers = await User.findAll({
-            limit: 5,
+            limit: 6,
             order: [['createdAt', 'DESC']],
             attributes: ['id', 'email', 'type', 'isActive', 'createdAt']
         });
         
         // Format data user untuk response
-        const usersList = registeredUsers.map((user) => ({
-            id: user.id,
-            name: user.email.split('@')[0], // Menggunakan username dari email
+        const usersList = registeredUsers.map((user, index) => ({
+            no: index + 1,
             email: user.email,
-            status: isUserOnline(user.id) ? "Online" : "Offline",
-            profile_picture: null // Tidak ada profile picture dari database
+            nama: user.email.split('@')[0], // Menggunakan username dari email
+            status: isUserOnline(user.id) ? "Online" : "Offline"
         }));
         
         // Menyiapkan data untuk response
@@ -185,13 +314,27 @@ const adminDashboard = async (req, res) => {
                 ready: {
                     text: "Perangkat siap digunakan", 
                     value: `${readyDevices.length}/${totalDevices}`
+                },
+                almost_finished: {
+                    text: "Perangkat hampir selesai",
+                    value: `${almostFinishedDevices.length}/${activeDevices.length}`
                 }
+            },
+            running_devices_list: {
+                title: "Daftar Perangkat Sedang Berjalan",
+                devices: runningDevicesList,
+                total_count: activeDevices.length
             },
             total_income: {
                 title: "Total pemasukan",
-                timeframe: "Minggu ini",
-                total: totalWeeklyIncome,
-                chart_data: weeklyIncomeData
+                timeframe: timeFilterText[timeFilter],
+                total: totalIncome,
+                chart_data: chartData,
+                available_filters: [
+                    { value: 'week', label: 'Minggu ini' },
+                    { value: 'month', label: 'Bulan ini' },
+                    { value: 'year', label: 'Tahun ini' }
+                ]
             },
             registered_users: {
                 title: "User yang terdaftar",
