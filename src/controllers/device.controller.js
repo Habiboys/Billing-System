@@ -1,6 +1,6 @@
 const{ Device, User, Category } = require('../models');
 const { v4: uuidv4 } = require('uuid');
-const { getConnectionStatus, isTimerActive, sendCommand } = require('../wsClient');
+const { getConnectionStatus, isTimerActive, sendCommand, sendAddTime } = require('../wsClient');
 
 //create device
 const createDevice = async (req, res) => {
