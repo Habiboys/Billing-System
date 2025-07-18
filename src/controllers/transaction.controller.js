@@ -76,9 +76,9 @@ const createTransaction = async (req, res) => {
         const {deviceId, start, duration} = req.body;
         
         // Validasi input
-        if (!deviceId || !duration) {
+        if (!deviceId || !duration || !start) {
             return res.status(400).json({
-                message: ' deviceId, dan duration wajib diisi'
+                message: ' deviceId, start, dan duration wajib diisi'
             });
         }
 

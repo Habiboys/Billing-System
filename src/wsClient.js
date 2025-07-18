@@ -222,7 +222,6 @@ const initWebSocketServer = (server) => {
                     // Cek apakah device memiliki timer yang di-pause
                     if (pausedDevices.has(deviceId)) {
                         console.log(`Device ${deviceId} reconnected with paused timer - auto resume`);
-                        
                         // Otomatis resume timer yang di-pause
                         handleAutoResume(deviceId, ws);
                     }
@@ -233,18 +232,23 @@ const initWebSocketServer = (server) => {
                         status: 'success',
                         deviceId: deviceId
                     }));
-                    
-                    // Kirim notifikasi ke mobile client bahwa device connect (hanya jika tidak ada timer paused)
-                    if (!pausedDevices.has(deviceId)) {
-                        notifyMobileClients({
-                            type: 'device_connect',
-                            deviceId: deviceId,
-                            timestamp: new Date().toISOString(),
-                            detail: {
-                                message: `Device ${deviceId} connected`
-                            }
-                        });
+
+                    // --- PERBAIKAN: Selalu kirim notifikasi ke mobile client dengan status yang sesuai ---
+                    let deviceStatus = 'connected_stopped';
+                    if (activeTimers.has(deviceId)) {
+                        deviceStatus = 'connected_active';
+                    } else if (pausedDevices.has(deviceId)) {
+                        deviceStatus = 'connected_paused';
                     }
+                    notifyMobileClients({
+                        type: 'device_connect',
+                        deviceId: deviceId,
+                        status: deviceStatus,
+                        timestamp: new Date().toISOString(),
+                        detail: {
+                            message: `Device ${deviceId} connected (${deviceStatus.replace('connected_', '')})`
+                        }
+                    });
                 }
                 
                 // Handle status update dari ESP32
