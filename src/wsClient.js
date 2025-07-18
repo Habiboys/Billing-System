@@ -225,6 +225,17 @@ const initWebSocketServer = (server) => {
                         
                         // Otomatis resume timer yang di-pause
                         handleAutoResume(deviceId, ws);
+                        
+                        // Kirim notifikasi ke mobile client bahwa device connect dalam keadaan pause
+                        notifyMobileClients({
+                            type: 'device_connect',
+                            deviceId: deviceId,
+                            timestamp: new Date().toISOString(),
+                            detail: {
+                                message: `Device ${deviceId} connected (paused)`,
+                                status: 'pause'
+                            }
+                        });
                     }
                     
                     // Kirim konfirmasi ke device
