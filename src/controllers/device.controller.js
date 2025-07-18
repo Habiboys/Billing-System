@@ -313,11 +313,123 @@ const sendDeviceCommand = async (req, res) => {
     }
 };
 
+const addTime = async (req, res) => {
+    const { deviceId } = req.params;
+    const { additionalTime } = req.body;
+
+    console.log('Add time request:', { deviceId, additionalTime });
+
+    try {
+        // Validasi input
+        if (!additionalTime || typeof additionalTime !== 'number' || additionalTime <= 0) {
+            return res.status(400).json({
+                message: 'Additional time harus berupa angka positif (dalam detik)'
+            });
+        }
+
+        // Cari transaksi berdasarkan ID
+
+
+        const device = await Device.findByPk(deviceId,{
+            include: [{
+                model: Category
+            }]
+        });
+
+       
+
+        
+        // Cek apakah device sedang memiliki timer aktif atau di-pause
+        if (device.timerStatus !== 'start') {
+            return res.status(400).json({
+                message: 'Device tidak memiliki timer yang aktif. Timer mungkin sudah selesai atau belum dimulai.'
+            });
+        }
+
+        // Cek apakah device memiliki timer yang di-pause di WebSocket
+        const { isTimerPaused } = require('../wsClient');
+        if (isTimerPaused(device.id)) {
+            return res.status(400).json({
+                message: 'Device memiliki timer yang di-pause. Harap resume timer terlebih dahulu sebelum menambah waktu.'
+            });
+        }
+
+        // Kirim perintah add time ke device
+        const result = await sendAddTime({
+            deviceId: device.id,
+            additionalTime: additionalTime * 60
+        });
+
+        if (!result.success) {
+            return res.status(400).json({
+                message: result.message
+            });
+        }
+
+        const newDeviceDuration = device.timerDuration + additionalTime;
+        const newCost = device.cost + (device.Category.cost * (additionalTime/device.Category.periode));
+
+        // Update transaksi
+        const transaction = await Transaction.create({
+            deviceId: deviceId,
+            start: device.timerStart,
+            end: null, // Transaksi aktif tidak boleh memiliki end timestamp
+            duration: newDeviceDuration,
+            cost: newCost      
+        });
+
+        // Update device timer duration
+        await device.update({
+            timerDuration: newDeviceDuration
+        });
+
+
+        // Notify mobile clients
+        notifyMobileClients({
+            type: 'transaction_time_added',
+            transactionId: transaction.id,
+            deviceId: device.id,
+            additionalTime: additionalTime,
+            newDuration: newDeviceDuration,
+            newCost: newCost,
+            timestamp: new Date().toISOString()
+        });
+
+        return res.status(200).json({
+            message: `Berhasil menambah waktu ${additionalTime} menit  ke device`,
+            data: {
+                transaction: {
+                    id: transaction.id,
+                    deviceId: transaction.deviceId,
+                    duration: transaction.duration,
+                    cost: transaction.cost,
+                    start: transaction.start,
+                    end: transaction.end
+                },
+                device: {
+                    id: device.id,
+                    name: device.name,
+                    timerStatus: device.timerStatus,
+                    timerDuration: device.timerDuration
+                },
+                addedTime: additionalTime
+            }
+        });
+
+    } catch (error) {
+        console.error('Add time to transaction error:', error);
+        return res.status(500).json({
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     createDevice,
     getAllDevices,
     getDeviceById,
     updateDevice,
     deleteDevice,
-    sendDeviceCommand
+    sendDeviceCommand,
+    addTime
 }

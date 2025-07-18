@@ -739,6 +739,78 @@ paths:
         "404":
           description: Device tidak ditemukan
 
+  /device/{deviceId}/add-time:
+    post:
+      summary: Add time to active transaction
+      tags: [Device]
+      description: |
+        Menambah waktu pada transaksi yang sedang aktif.
+        
+        **Validasi:**
+        - Transaksi harus ada dan belum selesai (end = null)
+        - Device harus memiliki timer yang aktif (timerStatus = 'start')
+        - Device tidak boleh memiliki timer yang di-pause di WebSocket
+        
+        **Jika device memiliki timer yang di-pause, resume timer terlebih dahulu menggunakan command start.**
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: deviceId
+          schema:
+            type: string
+          required: true
+          description: Device ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                additionalTime:
+                  type: integer
+                  description: Additional time in seconds
+              required:
+                - additionalTime
+              example:
+                additionalTime: 300
+      responses:
+        "200":
+          description: Berhasil menambah waktu ke transaksi
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      transaction:
+                        $ref: "#/components/schemas/Transaction"
+                      device:
+                        type: object
+                      addedTime:
+                        type: integer
+        "400":
+          description: Device tidak memiliki timer yang aktif, timer di-pause, atau transaksi sudah selesai
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    examples:
+                      timer_not_active: "Device tidak memiliki timer yang aktif. Timer mungkin sudah selesai atau belum dimulai."
+                      timer_paused: "Device memiliki timer yang di-pause. Harap resume timer terlebih dahulu sebelum menambah waktu."
+                      transaction_ended: "Transaksi sudah selesai dan tidak bisa ditambah waktu"
+        "404":
+          description: Transaksi tidak ditemukan
+
+
   # TRANSACTION ROUTES
   /transaction/create:
     post:
@@ -1025,79 +1097,6 @@ paths:
           description: Transaction deleted successfully
         "404":
           description: Transaction not found
-
-  /transaction/{transactionId}/add-time:
-    post:
-      summary: Add time to active transaction
-      tags: [Transaction]
-      description: |
-        Menambah waktu pada transaksi yang sedang aktif.
-        
-        **Validasi:**
-        - Transaksi harus ada dan belum selesai (end = null)
-        - Device harus memiliki timer yang aktif (timerStatus = 'start')
-        - Device tidak boleh memiliki timer yang di-pause di WebSocket
-        
-        **Jika device memiliki timer yang di-pause, resume timer terlebih dahulu menggunakan command start.**
-      security:
-        - BearerAuth: []
-      parameters:
-        - in: path
-          name: transactionId
-          schema:
-            type: string
-          required: true
-          description: Transaction ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                additionalTime:
-                  type: integer
-                  description: Additional time in seconds
-              required:
-                - additionalTime
-              example:
-                additionalTime: 300
-      responses:
-        "200":
-          description: Berhasil menambah waktu ke transaksi
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  data:
-                    type: object
-                    properties:
-                      command:
-                        type: object
-                      transaction:
-                        $ref: "#/components/schemas/Transaction"
-                      device:
-                        type: object
-                      addedTime:
-                        type: integer
-        "400":
-          description: Device tidak memiliki timer yang aktif, timer di-pause, atau transaksi sudah selesai
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    examples:
-                      timer_not_active: "Device tidak memiliki timer yang aktif. Timer mungkin sudah selesai atau belum dimulai."
-                      timer_paused: "Device memiliki timer yang di-pause. Harap resume timer terlebih dahulu sebelum menambah waktu."
-                      transaction_ended: "Transaksi sudah selesai dan tidak bisa ditambah waktu"
-        "404":
-          description: Transaksi tidak ditemukan
 
 
 

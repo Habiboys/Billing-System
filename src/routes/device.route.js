@@ -7,6 +7,7 @@ const{
     updateDevice, 
     deleteDevice,
     sendDeviceCommand,
+    addTime
 } = require('../controllers/device.controller');
 
 const{ tokenValidation, verifyAdmin} = require('../middlewares/auth.middleware');
@@ -20,6 +21,10 @@ router.delete('/delete/:id', tokenValidation, deleteDevice);
 
 // Command routes
 router.post('/:id/command', tokenValidation, sendDeviceCommand);
+
+// Add time to device (memerlukan auth)
+router.post('/:deviceId/add-time', tokenValidation, addTime);
+
 
 
 
