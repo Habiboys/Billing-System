@@ -222,6 +222,7 @@ const initWebSocketServer = (server) => {
                     // Cek apakah device memiliki timer yang di-pause
                     if (pausedDevices.has(deviceId)) {
                         console.log(`Device ${deviceId} reconnected with paused timer - auto resume`);
+                        
                         // Otomatis resume timer yang di-pause
                         handleAutoResume(deviceId, ws);
                     }
@@ -232,23 +233,18 @@ const initWebSocketServer = (server) => {
                         status: 'success',
                         deviceId: deviceId
                     }));
-
-                    // --- PERBAIKAN: Selalu kirim notifikasi ke mobile client dengan status yang sesuai ---
-                    let deviceStatus = 'connected_stopped';
-                    if (activeTimers.has(deviceId)) {
-                        deviceStatus = 'connected_active';
-                    } else if (pausedDevices.has(deviceId)) {
-                        deviceStatus = 'connected_paused';
+                    
+                    // Kirim notifikasi ke mobile client bahwa device connect (hanya jika tidak ada timer paused)
+                    if (!pausedDevices.has(deviceId)) {
+                        notifyMobileClients({
+                            type: 'device_connect',
+                            deviceId: deviceId,
+                            timestamp: new Date().toISOString(),
+                            detail: {
+                                message: `Device ${deviceId} connected`
+                            }
+                        });
                     }
-                    notifyMobileClients({
-                        type: 'device_connect',
-                        deviceId: deviceId,
-                        status: deviceStatus,
-                        timestamp: new Date().toISOString(),
-                        detail: {
-                            message: `Device ${deviceId} connected (${deviceStatus.replace('connected_', '')})`
-                        }
-                    });
                 }
                 
                 // Handle status update dari ESP32
@@ -306,15 +302,16 @@ const initWebSocketServer = (server) => {
                     connectedClients.delete(deviceId);
                     console.log(`Device ${deviceId} unregistered`);
                     
-                    // Jika device sedang memiliki timer aktif, jangan hapus dari activeTimers
-                    // tapi tambahkan ke pausedDevices untuk menandakan timer di-pause
+                    // Jika device sedang memiliki timer aktif, tambahkan ke pausedDevices
                     if (activeTimers.has(deviceId)) {
                         activeTimers.delete(deviceId);
                         pausedDevices.add(deviceId);
                         console.log(`Timer for device ${deviceId} paused due to disconnect`);
                     }
-                    
-                    // Kirim notifikasi ke mobile client bahwa device disconnect
+                    // Jika device sudah dalam keadaan pause, biarkan di pausedDevices
+                    // Jika device tidak aktif dan tidak pause, tidak perlu perubahan
+
+                    // Kirim notifikasi ke mobile client bahwa device disconnect (apapun statusnya)
                     notifyMobileClients({
                         type: 'device_disconnect',
                         deviceId: deviceId,
