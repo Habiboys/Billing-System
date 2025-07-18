@@ -335,6 +335,7 @@ const addTime = async (req, res) => {
                 model: Category
             }]
         });
+        const additionalTimeInSeconds = additionalTime * 60;
 
        
 
@@ -357,7 +358,7 @@ const addTime = async (req, res) => {
         // Kirim perintah add time ke device
         const result = await sendAddTime({
             deviceId: device.id,
-            additionalTime: additionalTime * 60
+            additionalTime: additionalTimeInSeconds 
         });
 
         if (!result.success) {
@@ -366,8 +367,8 @@ const addTime = async (req, res) => {
             });
         }
 
-        const newDeviceDuration = device.timerDuration + additionalTime;
-        const newCost = device.cost + (device.Category.cost * (additionalTime/device.Category.periode));
+        const newDeviceDuration = device.timerDuration + additionalTimeInSeconds;
+        const newCost = device.Category.cost * (additionalTime/device.Category.periode);
 
         // Update transaksi
         const transaction = await Transaction.create({
