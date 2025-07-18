@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { getConnectionStatus, isTimerActive, isTimerPaused, canResumeTimer } = require("../wsClient");
+const { getUnregisteredDevices, getDisconnectedDevices } = require("../controllers/connection.controller");
 
 // Get connection status
 router.get("/status", (req, res) => {
@@ -9,20 +10,10 @@ router.get("/status", (req, res) => {
 });
 
 // Get unregistered devices
-router.get("/unregistered", (req, res) => {
-    res.json({
-        message: "Unregistered devices",
-        data: []
-    });
-});
+router.get("/unregistered", getUnregisteredDevices);
 
 // Get disconnected devices
-router.get("/disconnected", (req, res) => {
-    res.json({
-        message: "Disconnected devices",
-        data: []
-    });
-});
+router.get("/disconnected", getDisconnectedDevices);
 
 // Get detailed timer status for all devices
 router.get("/timer-status", (req, res) => {
