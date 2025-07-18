@@ -1,4 +1,4 @@
-const{ Device, User, Category } = require('../models');
+const{ Device, User, Category, Transaction } = require('../models');
 const { v4: uuidv4 } = require('uuid');
 const { getConnectionStatus, isTimerActive, sendCommand, sendAddTime } = require('../wsClient');
 
