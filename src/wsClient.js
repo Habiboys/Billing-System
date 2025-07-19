@@ -177,6 +177,22 @@ const initWebSocketServer = (server) => {
                 if (data.type === 'mobile_client') {
                     mobileClients.add(ws);
                     console.log('Mobile client registered for notifications');
+                    
+                    // Jika ada userId, register juga sebagai user online
+                    const userId = data.userId;
+                    if (userId) {
+                        // Update existing connection if exists
+                        if (userConnections.has(userId)) {
+                            const existingWs = userConnections.get(userId);
+                            if (existingWs !== ws) {
+                                existingWs.close();
+                                console.log(`Closing old connection for user ${userId}`);
+                            }
+                        }
+                        userConnections.set(userId, ws);
+                        onlineUsers.add(userId);
+                        console.log(`Mobile client registered with user ${userId} and marked as online`);
+                    }
                     return;
                 }
                 
@@ -294,6 +310,16 @@ const initWebSocketServer = (server) => {
             if (mobileClients.has(ws)) {
                 mobileClients.delete(ws);
                 console.log('Mobile client disconnected');
+                
+                // Juga hapus dari user online jika mobile client memiliki userId
+                for (let [userId, client] of userConnections.entries()) {
+                    if (client === ws) {
+                        userConnections.delete(userId);
+                        onlineUsers.delete(userId);
+                        console.log(`Mobile client with user ${userId} disconnected and marked as offline`);
+                        break;
+                    }
+                }
                 return;
             }
             
