@@ -3,7 +3,7 @@ const {
   Model
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
-  class Transaction extends Model {
+  class Member extends Model {
     /**
      * Helper method for defining associations.
      * This method is not a part of Sequelize lifecycle.
@@ -11,35 +11,46 @@ module.exports = (sequelize, DataTypes) => {
      */
     static associate(models) {
       // define association here
-      Transaction.belongsTo(models.Device, {
-        foreignKey: 'deviceId',
-        // as: 'device'
-      });
-      
-      Transaction.belongsTo(models.Member, {
+      Member.hasMany(models.Transaction, {
         foreignKey: 'memberId',
-        as: 'member'
+        as: 'transactions'
       });
     }
   }
-  Transaction.init({
-        id: {
+  Member.init({
+    id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
       allowNull: false,
       primaryKey: true,
     },
-    deviceId: DataTypes.UUID,
-    memberId: DataTypes.UUID,
-    start: DataTypes.DATE,
-    end: DataTypes.DATE,
-    duration: DataTypes.INTEGER,
-    cost: DataTypes.INTEGER,
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        isEmail: true
+      }
+    },
+    username: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true
+    },
+    pin: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    deposit: {
+      type: DataTypes.DECIMAL(15, 2),
+      allowNull: false,
+      defaultValue: 0.00
+    },
     createdAt: DataTypes.DATE,
     updatedAt: DataTypes.DATE
   }, {
     sequelize,
-    modelName: 'Transaction',
+    modelName: 'Member',
   });
-  return Transaction;
+  return Member;
 };
