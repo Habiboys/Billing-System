@@ -17,6 +17,7 @@ const connectionRoutes = require('./routes/connection.route');
 const dashboardRoutes = require('./routes/dashboard.route');
 const userRoutes = require('./routes/user.route');
 const memberRoutes = require('./routes/member.route');
+const memberTransactionRoutes = require('./routes/memberTransaction.route');
 
 // Import WebSocket functions
 const { initWebSocketServer, sendToESP32, getConnectionStatus } = require('./wsClient');
@@ -52,6 +53,7 @@ app.use('/api/connection', connectionRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/member', memberRoutes);
+app.use('/api/member-transactions', memberTransactionRoutes);
 
 // ⭐ LANGKAH PENTING: Buat HTTP Server dari Express app
 const server = http.createServer(app);
